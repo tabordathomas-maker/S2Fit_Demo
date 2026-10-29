@@ -1,0 +1,36 @@
+# Blueprint de Render para la API (Render > New > Blueprint > este repositorio).
+# Los valores marcados con sync: false se escriben a mano en el panel de Render.
+services:
+  - type: web
+    name: s2fit-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # El plan gratuito no admite preDeployCommand: las migraciones se aplican al arrancar.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.6
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: product-images
+      - key: CORS_ORIGINS
+        sync: false
+      - key: RESERVATION_TTL_MINUTES
+        value: "2880"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "10"
+      - key: APP_TIMEZONE
+        value: America/Bogota

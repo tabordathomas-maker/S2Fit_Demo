@@ -1,0 +1,22 @@
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node / Vite
+node_modules/
+dist/
+*.local
+coverage/
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

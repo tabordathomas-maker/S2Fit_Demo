@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* Identidad visual del prototipo: borgoña, crema y beige. */
+@theme {
+  --color-burgundy: #582222;
+  --color-burgundy-dark: #3f1717;
+  --color-cream: #f5f4ef;
+  --color-beige: #e8dcc8;
+  --color-muted: #5b5149;
+  --color-ink: #000000;
+  --font-sans: Calibri, Carlito, system-ui, sans-serif;
+  --font-display: "Bookman Old Style", Bookman, "URW Bookman", Georgia, serif;
+}
+
+@layer base {
+  body {
+    @apply bg-cream font-sans text-ink antialiased;
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-burgundy);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .wrap {
+    @apply mx-auto w-full max-w-[1120px] px-4 sm:px-7;
+  }
+  .card {
+    @apply rounded-3xl bg-white p-7;
+  }
+  .muted {
+    @apply leading-relaxed text-muted;
+  }
+  .input {
+    @apply min-h-11 w-full rounded-2xl border-2 border-beige bg-white px-4 py-2 text-base focus:border-burgundy focus:outline-none;
+  }
+  .label {
+    @apply mb-1 block text-sm font-bold;
+  }
+}
