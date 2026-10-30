@@ -21,3 +21,8 @@ class ExpiredSweepResult(ORMModel):
 
 class UploadResult(ORMModel):
     url: str
+
+
+class MediaUploadResult(ORMModel):
+    url: str
+    media_type: str

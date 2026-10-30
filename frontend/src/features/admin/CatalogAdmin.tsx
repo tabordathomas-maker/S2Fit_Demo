@@ -148,7 +148,7 @@ function ProductEditor({ product, categories, run }: { product: AdminProduct; ca
             <Field label="Imagen (URL o ruta)" id={`i-${product.id}`} value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
             <div className="sm:col-span-2"><TextArea label="Descripción" id={`d-${product.id}`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             <div>
-              <label htmlFor={`u-${product.id}`} className="label">Subir imagen (Supabase Storage)</label>
+              <label htmlFor={`u-${product.id}`} className="label">Subir foto (JPG, PNG o WEBP, máx. 5 MB)</label>
               <input id={`u-${product.id}`} type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => void upload(e.target.files?.[0])} />
             </div>
             <Button type="submit" variant="dark" className="self-end">Guardar producto</Button>

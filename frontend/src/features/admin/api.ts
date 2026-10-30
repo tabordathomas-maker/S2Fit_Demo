@@ -78,6 +78,7 @@ export interface AdminContent {
   summary: string | null;
   body: string | null;
   media_url: string | null;
+  cover_url: string | null;
   meta: string | null;
   meal_slot: string | null;
   access: "free" | "plus";
@@ -132,6 +133,12 @@ export interface AuditLog {
   created_at: string;
 }
 
+export interface AdminSettings {
+  whatsapp_number: string | null;
+  updated_at: string | null;
+  updated_by_email: string | null;
+}
+
 const A = "/api/v1/admin";
 const post = <T,>(path: string, body?: unknown) => apiFetch<T>(A + path, { method: "POST", body });
 const patch = <T,>(path: string, body: unknown) => apiFetch<T>(A + path, { method: "PATCH", body });
@@ -162,6 +169,15 @@ export const adminApi = {
     form.append("file", file);
     return apiFetch<{ url: string }>(`${A}/uploads/product-image`, { method: "POST", formData: form });
   },
+  uploadContentMedia: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiFetch<{ url: string; media_type: "image" | "video" }>(`${A}/uploads/content-media`, { method: "POST", formData: form });
+  },
+
+  settings: () => apiFetch<AdminSettings>(`${A}/settings`),
+  updateSettings: (whatsapp_number: string | null) =>
+    apiFetch<AdminSettings>(`${A}/settings`, { method: "PUT", body: { whatsapp_number } }),
 
   plans: () => apiFetch<Plan[]>(`${A}/plans`),
   createPlan: (body: Record<string, unknown>) => post<Plan>("/plans", body),

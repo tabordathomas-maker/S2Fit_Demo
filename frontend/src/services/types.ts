@@ -149,6 +149,7 @@ export interface ContentItem {
   meal_slot: string | null;
   access: "free" | "plus";
   locked: boolean;
+  cover_url: string | null;
   body: string | null;
   media_url: string | null;
 }

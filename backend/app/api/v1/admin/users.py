@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import AdminUser, DbSession
 from app.models import AdminAuditLog, Profile
-from app.schemas.admin import AuditLogOut, UploadResult
+from app.schemas.admin import AuditLogOut, MediaUploadResult, UploadResult
 from app.schemas.profile import ProfileOut
 from app.services import audit, storage
 
@@ -59,8 +59,18 @@ def list_audit_logs(
 
 @router.post("/uploads/product-image", response_model=UploadResult)
 def upload_product_image(admin: AdminUser, db: DbSession, file: Annotated[UploadFile, File()]):
-    content = file.file.read(storage.MAX_BYTES + 1)
+    content = file.file.read(storage.MAX_IMAGE_BYTES + 1)
     url = storage.upload_product_image(content, file.content_type or "")
     audit.record(db, admin, "upload.product_image", "storage", url, {"filename": file.filename})
     db.commit()
     return {"url": url}
+
+
+@router.post("/uploads/content-media", response_model=MediaUploadResult)
+def upload_content_media(admin: AdminUser, db: DbSession, file: Annotated[UploadFile, File()]):
+    """Imagen de portada o video para rutinas, recetas y contenido de S2 Plus."""
+    content = file.file.read(storage.MAX_VIDEO_BYTES + 1)
+    url, media_type = storage.upload_content_media(content, file.content_type or "")
+    audit.record(db, admin, "upload.content_media", "storage", url, {"filename": file.filename, "type": media_type})
+    db.commit()
+    return {"url": url, "media_type": media_type}

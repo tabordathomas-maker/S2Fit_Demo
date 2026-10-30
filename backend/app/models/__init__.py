@@ -6,6 +6,7 @@ from app.models.catalog import Category, InventoryMovement, Product, ProductVari
 from app.models.content import ContentItem
 from app.models.orders import Order, OrderItem
 from app.models.payments import Payment
+from app.models.settings import SiteSettings
 from app.models.subscriptions import Plan, Subscription, SubscriptionRenewal, SubscriptionRequest
 from app.models.user import Profile
 from app.models.wellness import (
@@ -34,6 +35,7 @@ __all__ = [
     "ProductVariant",
     "Profile",
     "Reward",
+    "SiteSettings",
     "RewardRedemption",
     "Subscription",
     "SubscriptionRenewal",

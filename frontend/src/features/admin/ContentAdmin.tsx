@@ -4,6 +4,7 @@ import { Alert, Badge, Button, Field, Select, Spinner, TextArea } from "../../co
 import { errorMessage } from "../../services/api";
 import { formatDateTime } from "../../services/format";
 import { useAsync } from "../../services/useAsync";
+import { MediaPlayer } from "../content/ContentGrid";
 import { adminApi, type AdminContent } from "./api";
 
 const KIND_LABEL = { routine: "Rutina", recipe: "Receta", growth: "Crecimiento", meal: "Alimentación" } as const;
@@ -95,7 +96,7 @@ export function ContentAdmin() {
   );
 }
 
-const EMPTY = { kind: "routine", title: "", meta: "", summary: "", body: "", media_url: "", access: "free", meal_slot: "" };
+const EMPTY = { kind: "routine", title: "", meta: "", summary: "", body: "", media_url: "", cover_url: "", access: "free", meal_slot: "" };
 
 function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
   initial?: AdminContent; onSave: (body: Record<string, unknown>) => Promise<boolean>; submitLabel?: string;
@@ -103,14 +104,14 @@ function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
   const [form, setForm] = useState(
     initial
       ? { kind: initial.kind, title: initial.title, meta: initial.meta ?? "", summary: initial.summary ?? "", body: initial.body ?? "",
-          media_url: initial.media_url ?? "", access: initial.access, meal_slot: initial.meal_slot ?? "" }
+          media_url: initial.media_url ?? "", cover_url: initial.cover_url ?? "", access: initial.access, meal_slot: initial.meal_slot ?? "" }
       : EMPTY,
   );
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const body: Record<string, unknown> = {
       title: form.title, meta: form.meta || null, summary: form.summary || null, body: form.body || null,
-      media_url: form.media_url || null, access: form.access, meal_slot: form.meal_slot || null,
+      media_url: form.media_url || null, cover_url: form.cover_url || null, access: form.access, meal_slot: form.meal_slot || null,
     };
     if (!initial) body.kind = form.kind;
     if ((await onSave(body)) && !initial) setForm(EMPTY);
@@ -129,7 +130,21 @@ function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
       </Select>
       <Field label="Título" id={`${id}-title`} required minLength={2} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <Field label="Detalle corto" id={`${id}-meta`} placeholder="Video · 20 min" value={form.meta} onChange={(e) => setForm({ ...form, meta: e.target.value })} />
-      <Field label="Enlace del video o recurso (https)" id={`${id}-media`} type="url" pattern="https://.*" value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} />
+      <div className="flex flex-col gap-2 sm:col-span-2">
+        <Field label="Video o recurso: enlace de YouTube, Vimeo o archivo (https)" id={`${id}-media`} type="url" pattern="https://.*"
+          placeholder="https://www.youtube.com/watch?v=…" value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} />
+        <UploadInput id={`${id}-media-file`} label="…o sube un video (MP4, WEBM o MOV, máx. 50 MB) o una imagen"
+          accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/png,image/webp"
+          onUploaded={(url) => setForm((f) => ({ ...f, media_url: url }))} />
+        {form.media_url && <MediaPreview url={form.media_url} />}
+      </div>
+      <div className="flex flex-col gap-2 sm:col-span-2">
+        <Field label="Imagen de portada (opcional)" id={`${id}-cover`} type="url" pattern="https://.*"
+          value={form.cover_url} onChange={(e) => setForm({ ...form, cover_url: e.target.value })} />
+        <UploadInput id={`${id}-cover-file`} label="…o sube la portada (JPG, PNG o WEBP, máx. 5 MB)" accept="image/jpeg,image/png,image/webp"
+          onUploaded={(url) => setForm((f) => ({ ...f, cover_url: url }))} />
+        {form.cover_url && <img src={form.cover_url} alt="Portada" className="h-28 w-44 rounded-xl object-cover" />}
+      </div>
       <Select label="Franja (solo alimentación)" id={`${id}-slot`} value={form.meal_slot} onChange={(e) => setForm({ ...form, meal_slot: e.target.value })}>
         <option value="">—</option>
         <option value="desayuno">Desayuno</option><option value="almuerzo">Almuerzo</option><option value="cena">Cena</option><option value="snacks">Snacks</option>
@@ -198,5 +213,42 @@ function NewRewardForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<b
       </Select>
       <Button type="submit" variant="dark">Crear recompensa</Button>
     </form>
+  );
+}
+
+/** Sube el archivo a Supabase Storage (vía la API) y devuelve la URL pública. */
+function UploadInput({ id, label, accept, onUploaded }: {
+  id: string; label: string; accept: string; onUploaded: (url: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const { url } = await adminApi.uploadContentMedia(file);
+      onUploaded(url);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="label">{label}</label>
+      <input id={id} type="file" accept={accept} disabled={busy} onChange={(e) => void upload(e.target.files?.[0])} />
+      {busy && <Spinner label="Subiendo archivo… (los videos pueden tardar un poco)" />}
+      {error && <Alert>{error}</Alert>}
+    </div>
+  );
+}
+
+function MediaPreview({ url }: { url: string }) {
+  return (
+    <div className="max-w-md">
+      <MediaPlayer url={url} title="Vista previa" />
+    </div>
   );
 }

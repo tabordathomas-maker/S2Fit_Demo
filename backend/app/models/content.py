@@ -18,6 +18,8 @@ class ContentItem(TimestampMixin, Base):
     # Texto e enlace multimedia: solo se entregan si la persona tiene acceso.
     body: Mapped[str | None] = mapped_column(Text)
     media_url: Mapped[str | None] = mapped_column(String(500))
+    # Imagen de portada de la tarjeta (pública aunque el contenido sea de S2 Plus).
+    cover_url: Mapped[str | None] = mapped_column(String(500))
     meta: Mapped[str | None] = mapped_column(String(80))
     meal_slot: Mapped[str | None] = mapped_column(String(20))
     access: Mapped[str] = mapped_column(String(10), default=AccessLevel.free)

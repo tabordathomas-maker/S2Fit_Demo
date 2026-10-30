@@ -1,5 +1,6 @@
 # Blueprint de Render para la API (Render > New > Blueprint > este repositorio).
 # Los valores marcados con sync: false se escriben a mano en el panel de Render.
+# PYTHON_VERSION fija una versión 3.14 que Render ya ofrece (3.14.3). Si quieres otra, debe existir en Render.
 services:
   - type: web
     name: s2fit-api
@@ -13,7 +14,7 @@ services:
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
-        value: 3.14.6
+        value: 3.14.3
       - key: ENVIRONMENT
         value: production
       - key: DATABASE_URL

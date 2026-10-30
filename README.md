@@ -10,6 +10,8 @@ Las compras y las suscripciones **se acuerdan y pagan por WhatsApp**, mediante t
 
 > La interfaz reconstruye el prototipo `S2 Fit Evolution – prototipo web – Sitio S2 Fit Evolution.html`, con la misma paleta (borgoña `#582222`, crema `#F5F4EF`, beige `#E8DCC8`), las mismas tipografías y las mismas secciones. El prototipo solo traía dos imágenes, el logo y la foto del «Mono negro». Los otros cinco productos usan imágenes provisionales (`frontend/public/products/*.svg`) que se reemplazan desde el panel de administración.
 
+> **Guías para empezar:** [EJECUTAR_EN_LOCAL.md](EJECUTAR_EN_LOCAL.md) (correr el proyecto en tu computador) y [DESPLEGAR_PASO_A_PASO.md](DESPLEGAR_PASO_A_PASO.md) (publicarlo gratis en Supabase, Render y GitHub Pages).
+
 ---
 
 ## Índice
@@ -27,6 +29,7 @@ Las compras y las suscripciones **se acuerdan y pagan por WhatsApp**, mediante t
 11. [Despliegue del frontend en GitHub Pages](#11-despliegue-del-frontend-en-github-pages)
 12. [Despliegue del backend en Render](#12-despliegue-del-backend-en-render)
 13. [CORS y URLs de producción](#13-cors-y-urls-de-producción)
+    - [Fotos y videos desde el panel](#13-bis-fotos-y-videos-desde-el-panel)
 14. [Flujo de compra y suscripción por WhatsApp](#14-flujo-de-compra-y-suscripción-por-whatsapp)
 15. [Verificación administrativa de pagos](#15-verificación-administrativa-de-pagos)
 16. [Inventario y reservas](#16-inventario-y-reservas)
@@ -65,7 +68,7 @@ backend/
   app/api/v1/      routers públicos, de cliente y admin/
   alembic/         migraciones (0001 esquema, 0002 RLS + políticas Supabase)
   scripts/         seed_demo.py (datos de demostración) y set_role.py (administradores)
-  tests/           78 pruebas pytest (AAA) contra PostgreSQL aislado
+  tests/           98 pruebas pytest (AAA) contra PostgreSQL aislado
 frontend/
   src/components/  interfaz reutilizable (botones, píldoras, encabezado…)
   src/pages/       Inicio, Mi Ruta, Mi cuenta, páginas estáticas
@@ -163,7 +166,7 @@ Sin `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, las páginas públicas (Inic
    - *Site URL*: `https://TU-USUARIO.github.io/NOMBRE-REPO/` (o la URL local `http://localhost:5173/` mientras desarrollas).
    - *Redirect URLs*: añade `http://localhost:5173/**` y `https://TU-USUARIO.github.io/**`. Sin esto, fallan los enlaces de confirmación y de recuperación de contraseña.
 6. **Authentication → Providers → Email**: deja activada la confirmación de correo (recomendado). El correo integrado de Supabase tiene un límite bajo por hora; para producción conviene configurar SMTP propio.
-7. **Storage** (opcional, para subir fotos desde el panel): crea un bucket **público** llamado `product-images` y copia la clave **service_role** (*Project Settings → API*) en `SUPABASE_SERVICE_ROLE_KEY`, **solo en Render**. Las fotos de catálogo son públicas por naturaleza; si en el futuro se guardan archivos privados (por ejemplo, comprobantes), usa un bucket privado separado.
+7. **Storage** (necesario para subir fotos y videos desde el panel): crea un bucket **público** llamado `product-images` y copia la clave **secret** (`sb_secret_…`, o la *service_role* heredada) de *Project Settings → API Keys* en `SUPABASE_SERVICE_ROLE_KEY`, **solo en Render**. Las fotos de catálogo son públicas por naturaleza; si en el futuro se guardan archivos privados (por ejemplo, comprobantes), usa un bucket privado separado.
 
 ## 7. Migraciones de base de datos
 
@@ -180,6 +183,7 @@ alembic check               # confirma que modelos y migraciones coinciden
 ```
 
 - `0001_esquema_inicial`: 20 tablas con claves foráneas, restricciones `CHECK` (existencias ≥ 0, reservadas ≤ existencias, importes positivos, estados válidos), índices y referencias únicas.
+- `0003_ajustes_y_portadas`: tabla `site_settings` (WhatsApp de la tienda, editable desde el panel) y columna `content_items.cover_url` (portada de cada contenido).
 - `0002_rls_supabase`: activa RLS en todas las tablas. En Supabase crea además la clave foránea `profiles.id → auth.users.id` y políticas **de solo lectura**: cada persona ve solo sus filas, y cualquiera ve el catálogo publicado. En un PostgreSQL normal esa parte se omite automáticamente.
 
 En Render, las migraciones se aplican solas en cada arranque (`alembic upgrade head && uvicorn …`).
@@ -191,20 +195,24 @@ En Render, las migraciones se aplican solas en cada arranque (`alembic upgrade h
 El rol **nunca** se asigna desde la web: el registro siempre crea `customer` e ignora cualquier `role` que venga en los metadatos. Para nombrar un administrador:
 
 1. La persona se registra normalmente en la web y confirma su correo.
-2. Desde una terminal con acceso a la base de datos (tu equipo con `DATABASE_URL` de producción, o **Render → Shell**):
+2. Desde una terminal **en tu equipo**, con `DATABASE_URL` apuntando a la base de producción (el plan gratis de Render no tiene Shell):
 
 ```powershell
 cd backend
 python -m scripts.set_role --email admin@tu-dominio.com --role admin
+# Opcional: fijar el WhatsApp de la tienda en el mismo paso
+python -m scripts.set_role --email admin@tu-dominio.com --role admin --whatsapp "+57 300 123 4567"
 # Para quitar el rol:
 python -m scripts.set_role --email admin@tu-dominio.com --role customer
 ```
 
 3. La persona cierra sesión, vuelve a entrar y verá el enlace **Admin** en el menú.
 
+**WhatsApp de la tienda**: al nombrar al administrador, si la tienda aún no tiene número, se guarda el **celular con el que esa persona se registró** (los celulares colombianos de 10 dígitos reciben el indicativo 57). Con `--whatsapp` se fija otro número. Se cambia cuando quieras en **Admin → Configuración**; mientras no haya número, el panel muestra un aviso. `VITE_WHATSAPP_BUSINESS_NUMBER` queda solo como respaldo si la API no responde.
+
 ## 9. Ejecución de pruebas
 
-**Backend** (78 pruebas): cada ejecución borra y reconstruye la base `TEST_DATABASE_URL` con las migraciones. Por seguridad, el nombre de esa base **debe terminar en `_test`**; si no, pytest se niega a ejecutarse.
+**Backend** (98 pruebas): cada ejecución borra y reconstruye la base `TEST_DATABASE_URL` con las migraciones. Por seguridad, el nombre de esa base **debe terminar en `_test`**; si no, pytest se niega a ejecutarse.
 
 ```powershell
 cd backend
@@ -214,7 +222,7 @@ python -m pytest
 
 Cubren: verificación de JWT (firma, expiración, audiencia, emisor, tokens `anon`, `alg=none`, ES256 vía JWKS), perfiles, roles, separación de datos entre usuarios, catálogo, pedidos, variantes inexistentes, falta de existencias, reservas vencidas, **dos compras simultáneas de la última unidad**, confirmación, **doble confirmación (secuencial y simultánea)**, rechazo, reembolso, activación, renovación y vencimiento de la membresía, acceso a contenido exclusivo, hábitos, retos, recompensas, límite de solicitudes y auditoría.
 
-**Frontend** (29 pruebas):
+**Frontend** (35 pruebas):
 
 ```powershell
 cd frontend
@@ -238,7 +246,7 @@ Hay un archivo de ejemplo por aplicación: `backend/.env.example` y `frontend/.e
 | `VITE_API_BASE_URL` | URL de la API (`http://localhost:8000` o `https://s2fit-api.onrender.com`). |
 | `VITE_SUPABASE_URL` | URL del proyecto Supabase. |
 | `VITE_SUPABASE_ANON_KEY` | Clave **pública** anon/publishable. |
-| `VITE_WHATSAPP_BUSINESS_NUMBER` | Número comercial, solo dígitos y con indicativo (ej. `57…`). Si falta, la web muestra la referencia y el mensaje para copiarlos. |
+| `VITE_WHATSAPP_BUSINESS_NUMBER` | Opcional, solo respaldo. El número real se administra en *Admin → Configuración*. |
 | `VITE_BASE_PATH` | `/` o `/nombre-repo/`. En GitHub Actions se calcula sola. |
 
 > Todo lo que empieza por `VITE_` es visible para cualquier visitante. **Nunca** pongas ahí la clave `service_role`, el secreto JWT ni contraseñas.
@@ -268,7 +276,7 @@ Hay un archivo de ejemplo por aplicación: `backend/.env.example` y `frontend/.e
    git push -u origin main
    ```
 2. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. **Settings → Secrets and variables → Actions → pestaña Variables** (no *Secrets*, porque son valores públicos): crea `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_WHATSAPP_BUSINESS_NUMBER`.
+3. **Settings → Secrets and variables → Actions → pestaña Variables** (no *Secrets*, porque son valores públicos): crea `VITE_API_BASE_URL`, `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (`VITE_WHATSAPP_BUSINESS_NUMBER` es opcional).
 4. Cada `push` a `main` que toque `frontend/` ejecuta `.github/workflows/frontend.yml`: instala dependencias, revisa tipos, ejecuta pruebas, compila y publica `dist/`. También puedes lanzarlo a mano desde *Actions → Frontend → Run workflow*.
 5. La ruta base se calcula sola:
    - Repositorio `TU-USUARIO.github.io` → sitio en `https://TU-USUARIO.github.io/` con base `/`.
@@ -287,9 +295,9 @@ Las imágenes del prototipo se empaquetan con Vite (`src/assets`) o se sirven de
 - Health Check Path: `/health`
 - Instance type: Free
 
-Variables en **Environment**: `ENVIRONMENT=production`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET` (si aplica), `SUPABASE_SERVICE_ROLE_KEY` (opcional), `CORS_ORIGINS=https://TU-USUARIO.github.io`, y `PYTHON_VERSION=3.14.6`. Si Render no ofrece esa versión, usa otra 3.12+ y actualiza `backend/.python-version`.
+Variables en **Environment**: `ENVIRONMENT=production`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET` (si aplica), `SUPABASE_SERVICE_ROLE_KEY` (opcional), `CORS_ORIGINS=https://TU-USUARIO.github.io`, y `PYTHON_VERSION=3.14.3` (debe ser una versión que Render ofrezca).
 
-Comprueba el despliegue en `https://TU-SERVICIO.onrender.com/health`. Después crea el primer administrador ([sección 8](#8-creación-segura-del-primer-administrador)) y, si quieres, carga los datos de demostración con `python -m scripts.seed_demo --allow-production` desde *Render → Shell*.
+Comprueba el despliegue en `https://TU-SERVICIO.onrender.com/health`. Después crea el primer administrador ([sección 8](#8-creación-segura-del-primer-administrador)) y, si quieres, carga los datos de demostración con `python -m scripts.seed_demo --allow-production` **desde tu equipo** (el plan gratis de Render no tiene Shell).
 
 ## 13. CORS y URLs de producción
 
@@ -297,6 +305,15 @@ Comprueba el despliegue en `https://TU-SERVICIO.onrender.com/health`. Después c
 - Para varios orígenes (por ejemplo, producción y desarrollo): `https://TU-USUARIO.github.io,http://localhost:5173`.
 - `VITE_API_BASE_URL` en GitHub debe ser la URL de Render, sin barra final.
 - Los orígenes no autorizados reciben un rechazo en la consulta previa (preflight); esto está cubierto por las pruebas.
+
+## 13 bis. Fotos y videos desde el panel
+
+Requiere el bucket público `product-images` y `SUPABASE_SERVICE_ROLE_KEY` en el backend ([sección 6](#6-configuración-de-supabase)).
+
+- **Fotos de productos**: *Admin → Catálogo e inventario → Editar* en el producto → «Subir foto» (JPG, PNG o WEBP, máx. 5 MB). Se guarda sola.
+- **Videos y portadas de contenido**: *Admin → Contenido y retos*. En cada contenido puedes pegar un enlace de **YouTube o Vimeo** (se reproduce dentro de la página) o **subir un video** MP4/WEBM/MOV de hasta 50 MB (límite por archivo del plan gratis de Supabase), y subir una **imagen de portada**. Pulsa «Crear contenido» o «Guardar cambios» para aplicar.
+- Para videos largos conviene YouTube en modo **oculto**: no consume los 1 GB de Storage del plan gratis.
+- Los archivos del bucket son públicos: un video de S2 Plus solo se entrega a miembros activos, pero quien tenga el enlace podría compartirlo.
 
 ## 14. Flujo de compra y suscripción por WhatsApp
 
@@ -385,7 +402,7 @@ Toda acción administrativa importante queda en **Admin → Usuarios y auditorí
 | La página publicada sale en blanco o sin estilos | Revisa que Pages use *GitHub Actions* como fuente. La ruta base se calcula según el nombre del repositorio. |
 | El enlace de confirmación o recuperación no funciona | Agrega tu URL en *Supabase → Authentication → URL Configuration → Redirect URLs* y abre el enlace en el mismo navegador donde lo pediste (flujo PKCE). |
 | «La autenticación no está configurada» | Faltan `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY` en las Variables de GitHub o en `.env.local`. |
-| WhatsApp no se abre | Falta `VITE_WHATSAPP_BUSINESS_NUMBER`. La web igualmente muestra la referencia y el mensaje para copiar. |
+| WhatsApp no se abre | La tienda no tiene número: agrégalo en *Admin → Configuración*. La web igualmente muestra la referencia y el mensaje para copiar. |
 | `connection refused` o timeout a la base en Render | Usa la URI del **Session pooler** de Supabase (IPv4), no la conexión directa. |
 | `alembic upgrade` falla con `auth.users` | La clave de servicio no tiene permisos: ejecuta las migraciones con la URI del usuario `postgres` del pooler. |
 | pytest se cierra con «debe terminar en _test» | Protección contra borrar datos reales: usa una base `…_test`. |
@@ -396,7 +413,7 @@ Toda acción administrativa importante queda en **Admin → Usuarios y auditorí
 
 Estos datos no venían en el prototipo y quedaron configurables:
 
-- **Número de WhatsApp comercial**: no se inventó; se configura con `VITE_WHATSAPP_BUSINESS_NUMBER`.
+- **Número de WhatsApp comercial**: no se inventó; se toma del celular del primer administrador y se cambia en *Admin → Configuración*.
 - **Precio de S2 Plus**: por definir. El plan se crea sin precio y se edita en el panel.
 - **Precios de las prendas**: los del prototipo, marcados como **ejemplo** (`is_demo`).
 - **Porcentajes de descuento por hábitos** (3 %, 5 %, 10 %): de ejemplo, tomados del prototipo.

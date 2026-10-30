@@ -20,6 +20,7 @@ def _present(item: ContentItem, member: bool) -> dict:
         "meal_slot": item.meal_slot,
         "access": item.access,
         "locked": locked,
+        "cover_url": item.cover_url,
         "body": None if locked else item.body,
         "media_url": None if locked else item.media_url,
     }
