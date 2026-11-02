@@ -8,6 +8,7 @@ import { ContentAdmin } from "./ContentAdmin";
 import { MembershipsAdmin } from "./MembershipsAdmin";
 import { OrdersAdmin } from "./OrdersAdmin";
 import { PaymentsAdmin } from "./PaymentsAdmin";
+import { RoutinesAdmin } from "./RoutinesAdmin";
 import { SettingsAdmin } from "./SettingsAdmin";
 import { UsersAdmin } from "./UsersAdmin";
 
@@ -17,6 +18,7 @@ const TABS = [
   { id: "catalogo", label: "Catálogo e inventario", component: CatalogAdmin },
   { id: "plus", label: "S2 Plus", component: MembershipsAdmin },
   { id: "contenido", label: "Contenido y retos", component: ContentAdmin },
+  { id: "rutinas", label: "Rutinas personalizadas", component: RoutinesAdmin },
   { id: "usuarios", label: "Usuarios y auditoría", component: UsersAdmin },
   { id: "configuracion", label: "Configuración", component: SettingsAdmin },
 ];

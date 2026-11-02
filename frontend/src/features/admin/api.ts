@@ -1,4 +1,5 @@
 import { apiFetch } from "../../services/api";
+import type { RoutineDetail } from "../routines/api";
 import type { Category, ContentKind, Order, PaymentMethod, PaymentStatus, Plan, Profile, Subscription, SubscriptionRequest } from "../../services/types";
 
 export interface AdminPayment {
@@ -139,6 +140,39 @@ export interface AdminSettings {
   updated_by_email: string | null;
 }
 
+export interface AdminRoutineStep {
+  id: number;
+  position: number;
+  title: string;
+  instructions: string | null;
+  block_label: string | null;
+  media_url: string | null;
+  cover_url: string | null;
+  duration_minutes: number | null;
+  sets_reps: string | null;
+}
+
+export interface AdminRoutine {
+  id: number;
+  user_id: string;
+  user_email: string | null;
+  user_name: string | null;
+  has_plus: boolean;
+  plus_until: string | null;
+  title: string;
+  description: string | null;
+  goal: string | null;
+  status: "draft" | "active" | "archived";
+  sequential: boolean;
+  step_count: number;
+  progress_pct: number;
+  created_at: string;
+}
+
+export interface AdminRoutineDetail extends AdminRoutine {
+  steps: AdminRoutineStep[];
+}
+
 const A = "/api/v1/admin";
 const post = <T,>(path: string, body?: unknown) => apiFetch<T>(A + path, { method: "POST", body });
 const patch = <T,>(path: string, body: unknown) => apiFetch<T>(A + path, { method: "PATCH", body });
@@ -200,6 +234,17 @@ export const adminApi = {
   redemptions: () => apiFetch<AdminRedemption[]>(`${A}/redemptions`),
   decideRedemption: (id: number, status: "fulfilled" | "cancelled", admin_notes?: string) =>
     post<AdminRedemption>(`/redemptions/${id}/decision`, { status, admin_notes }),
+
+  routines: (userId?: string) => apiFetch<AdminRoutine[]>(`${A}/routines`, { query: { user_id: userId } }),
+  routine: (id: number) => apiFetch<AdminRoutineDetail>(`${A}/routines/${id}`),
+  createRoutine: (body: Record<string, unknown>) => post<AdminRoutineDetail>("/routines", body),
+  updateRoutine: (id: number, body: Record<string, unknown>) => patch<AdminRoutineDetail>(`/routines/${id}`, body),
+  addRoutineStep: (id: number, body: Record<string, unknown>) => post<AdminRoutineDetail>(`/routines/${id}/steps`, body),
+  updateRoutineStep: (stepId: number, body: Record<string, unknown>) => patch<AdminRoutineDetail>(`/routine-steps/${stepId}`, body),
+  deleteRoutineStep: (stepId: number) => apiFetch<AdminRoutineDetail>(`${A}/routine-steps/${stepId}`, { method: "DELETE" }),
+  reorderRoutineSteps: (id: number, step_ids: number[]) =>
+    apiFetch<AdminRoutineDetail>(`${A}/routines/${id}/steps/order`, { method: "PUT", body: { step_ids } }),
+  routineProgress: (id: number) => apiFetch<RoutineDetail>(`${A}/routines/${id}/progress`),
 
   profiles: (q?: string) => apiFetch<Profile[]>(`${A}/profiles`, { query: { q } }),
   auditLogs: (action?: string) => apiFetch<AuditLog[]>(`${A}/audit-logs`, { query: { action } }),

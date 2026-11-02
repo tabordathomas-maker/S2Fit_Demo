@@ -227,7 +227,7 @@ function NewRewardForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<b
 }
 
 /** Sube el archivo a Supabase Storage (vía la API) y devuelve la URL pública. */
-function UploadInput({ id, label, accept, hint, onUploaded }: {
+export function UploadInput({ id, label, accept, hint, onUploaded }: {
   id: string; label: string; accept: string; hint?: string; onUploaded: (url: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -252,7 +252,7 @@ function UploadInput({ id, label, accept, hint, onUploaded }: {
   );
 }
 
-function MediaPreview({ url }: { url: string }) {
+export function MediaPreview({ url }: { url: string }) {
   return (
     <div className="max-w-md">
       <MediaPlayer url={url} title="Vista previa" />
