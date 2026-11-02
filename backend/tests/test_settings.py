@@ -17,7 +17,7 @@ from tests.factories import create_admin, new_user
         ("+57 300 123 4567", "573001234567"),
         ("3001234567", "573001234567"),
         ("57-300-123-4567", "573001234567"),
-        ("+1 (415) 555-0100", "14155550100"),
+        ("300 123 4567", "573001234567"),
         ("", None),
     ],
 )
@@ -25,7 +25,7 @@ def test_whatsapp_numbers_are_normalized(raw, expected):
     assert normalize_whatsapp(raw) == expected
 
 
-@pytest.mark.parametrize("raw", ["123", "abc3001234567", "1234567890123456"])
+@pytest.mark.parametrize("raw", ["123", "abc3001234567", "1234567890123456", "+1 (415) 555-0100", "6041234567"])
 def test_invalid_whatsapp_numbers_are_rejected(raw):
     with pytest.raises(AppError):
         normalize_whatsapp(raw)

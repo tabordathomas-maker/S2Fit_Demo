@@ -3,6 +3,7 @@
 import uuid
 
 import jwt
+import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from app.core import security
@@ -36,7 +37,7 @@ def test_first_request_registers_customer_profile(client, db):
     body = response.json()
     assert body["role"] == "customer"
     assert body["full_name"] == "Laura"
-    assert db.get(Profile, user_id).phone == "+573001112233"
+    assert db.get(Profile, user_id).phone == "3001112233"
 
 
 def test_signup_metadata_cannot_grant_admin_role(client):
@@ -74,6 +75,36 @@ def test_profile_update_changes_name_and_phone(client):
     # Assert
     assert response.status_code == 200
     assert response.json()["full_name"] == "Ana Gómez"
+    assert response.json()["phone"] == "3009998877"
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(" 300 123 4567 ", "3001234567"), ("310-555-1234", "3105551234")])
+def test_profile_update_cleans_phone(client, raw, expected):
+    user = new_user()
+
+    response = client.patch("/api/v1/me", json={"phone": raw}, headers=user.headers)
+
+    assert response.status_code == 200
+    assert response.json()["phone"] == expected
+
+
+@pytest.mark.parametrize("raw", ["300 123", "6041234567"])
+def test_profile_update_rejects_invalid_phone(client, raw):
+    user = new_user()
+
+    response = client.patch("/api/v1/me", json={"phone": raw}, headers=user.headers)
+
+    assert response.status_code == 422
+
+
+def test_invalid_signup_phone_is_stored_as_none(client, db):
+    user_id = uuid.uuid4()
+    token = make_token(user_id, metadata={"full_name": "Laura", "phone": "abc123"})
+
+    response = client.get("/api/v1/me", headers=_bearer(token))
+
+    assert response.status_code == 200
+    assert db.get(Profile, user_id).phone is None
 
 
 def test_missing_token_is_rejected(client):

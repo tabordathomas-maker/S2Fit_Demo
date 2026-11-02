@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 
+import { PhoneField } from "../components/PhoneField";
 import { Alert, Button, Field, LinkButton, SectionTitle, Spinner } from "../components/ui";
 import { useAuth } from "../features/auth/AuthProvider";
 import { ordersApi } from "../features/orders/api";
 import { subscriptionsApi } from "../features/subscriptions/api";
 import { MembershipCard } from "../features/subscriptions/MembershipCard";
 import { apiFetch, errorMessage } from "../services/api";
+import { formatPhone, phoneForSubmit } from "../services/phone";
 import { formatCOP, formatDateTime, paymentMethodLabel, paymentStatusLabel } from "../services/format";
 import type { Profile } from "../services/types";
 import { useAsync } from "../services/useAsync";
@@ -13,19 +15,19 @@ import { useAsync } from "../services/useAsync";
 function ProfileForm() {
   const { profile, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
-  const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [phone, setPhone] = useState(formatPhone(profile?.phone));
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     setFullName(profile?.full_name ?? "");
-    setPhone(profile?.phone ?? "");
+    setPhone(formatPhone(profile?.phone));
   }, [profile]);
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setMessage(null);
     try {
-      await apiFetch<Profile>("/api/v1/me", { method: "PATCH", body: { full_name: fullName.trim() || null, phone: phone.trim() || null } });
+      await apiFetch<Profile>("/api/v1/me", { method: "PATCH", body: { full_name: fullName.trim() || null, phone: phoneForSubmit(phone) } });
       await refreshProfile();
       setMessage({ tone: "success", text: "Datos actualizados." });
     } catch (err) {
@@ -38,7 +40,7 @@ function ProfileForm() {
       <h2 className="text-2xl">Mi perfil</h2>
       <p className="text-sm text-muted">{profile?.email}</p>
       <Field label="Nombre completo" id="profile-name" value={fullName} onChange={(e) => setFullName(e.target.value)} minLength={2} />
-      <Field label="Celular (WhatsApp)" id="profile-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} pattern="\+?[0-9]{7,15}" />
+      <PhoneField id="profile-phone" value={phone} onChange={setPhone} />
       {message && <Alert tone={message.tone}>{message.text}</Alert>}
       <Button type="submit" variant="dark" className="self-start">Guardar</Button>
     </form>

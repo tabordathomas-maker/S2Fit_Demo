@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { Alert, Badge, Spinner } from "../../components/ui";
 import { formatDateTime } from "../../services/format";
+import { formatPhone } from "../../services/phone";
 import { useAsync } from "../../services/useAsync";
 import { adminApi } from "./api";
 
@@ -29,7 +30,7 @@ export function UsersAdmin() {
             <tbody>
               {profiles.data?.map((p) => (
                 <tr key={p.id} className="border-b border-beige/60">
-                  <td className="py-2">{p.full_name ?? "—"}</td><td>{p.email}</td><td>{p.phone ?? "—"}</td>
+                  <td className="py-2">{p.full_name ?? "—"}</td><td>{p.email}</td><td>{p.phone ? formatPhone(p.phone) : "—"}</td>
                   <td><Badge tone={p.role === "admin" ? "burgundy" : "beige"}>{p.role}</Badge></td>
                   <td>{formatDateTime(p.created_at)}</td>
                 </tr>

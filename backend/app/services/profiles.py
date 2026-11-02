@@ -1,15 +1,13 @@
-import re
 import uuid
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from app.core.phones import normalize_co_mobile
 from app.core.security import unauthorized
 from app.models import Profile
 from app.models.enums import Role
-
-_PHONE = re.compile(r"^\+?[0-9]{7,15}$")
 
 
 def _clean(value: Any, max_length: int) -> str | None:
@@ -35,14 +33,17 @@ def get_or_create_profile(db: Session, claims: dict[str, Any]) -> Profile:
         return profile
 
     metadata = claims.get("user_metadata") or {}
-    phone = _clean(metadata.get("phone"), 20)
+    try:
+        phone = normalize_co_mobile(_clean(metadata.get("phone"), 30))
+    except ValueError:
+        phone = None  # los metadatos los controla el usuario: un valor inválido se descarta
     db.execute(
         insert(Profile)
         .values(
             id=user_id,
             email=_clean(claims.get("email"), 320),
             full_name=_clean(metadata.get("full_name"), 120),
-            phone=phone if phone and _PHONE.match(phone) else None,
+            phone=phone,
             role=Role.customer.value,
         )
         .on_conflict_do_nothing(index_elements=["id"])

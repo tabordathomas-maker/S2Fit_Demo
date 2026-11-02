@@ -1,7 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
+import { PhoneField } from "../../components/PhoneField";
 import { Alert, Button, Field } from "../../components/ui";
+import { phoneForSubmit } from "../../services/phone";
 import { useAuth } from "./AuthProvider";
 
 function safeNext(value: string | null): string {
@@ -93,7 +95,8 @@ export function RegisterPage() {
     e.preventDefault();
     void run(async () => {
       if (form.password.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres.");
-      const { needsConfirmation } = await signUp(form.email.trim(), form.password, form.fullName.trim(), form.phone.trim());
+      const phone = phoneForSubmit(form.phone, true) as string;
+      const { needsConfirmation } = await signUp(form.email.trim(), form.password, form.fullName.trim(), phone);
       if (needsConfirmation) setDone(true);
       else navigate(next, { replace: true });
     });
@@ -112,7 +115,7 @@ export function RegisterPage() {
     <AuthCard title="Crear cuenta">
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Field label="Nombre completo" id="fullName" autoComplete="name" required minLength={2} value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-        <Field label="Celular (WhatsApp)" id="phone" type="tel" autoComplete="tel" pattern="\+?[0-9]{7,15}" placeholder="+57…" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        <PhoneField id="phone" required value={form.phone} onChange={(phone) => setForm((f) => ({ ...f, phone }))} />
         <Field label="Correo" id="email" type="email" autoComplete="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <Field label="Contraseña" id="password" type="password" autoComplete="new-password" required minLength={8} hint="Mínimo 8 caracteres." value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
         <label className="flex items-start gap-2 text-sm">

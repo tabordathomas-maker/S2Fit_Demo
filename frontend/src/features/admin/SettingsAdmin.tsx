@@ -1,21 +1,19 @@
 import { useEffect, useState, type FormEvent } from "react";
 
-import { Alert, Button, Field, Spinner } from "../../components/ui";
+import { PhoneField } from "../../components/PhoneField";
+import { Alert, Button, Spinner } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatDateTime } from "../../services/format";
+import { formatPhone, phoneForSubmit } from "../../services/phone";
 import { applyWhatsAppNumber } from "../../services/settings";
 import { useAsync } from "../../services/useAsync";
 import { buildWhatsAppUrl } from "../../services/whatsapp";
 import { useAuth } from "../auth/AuthProvider";
 import { adminApi } from "./api";
 
-/** Muestra un número guardado (573001234567) como +57 300 123 4567. */
+/** Muestra un número guardado (573001234567) como 300 123 4567. */
 export function prettyWhatsApp(digits: string | null | undefined): string {
-  if (!digits) return "";
-  if (digits.startsWith("57") && digits.length === 12) {
-    return `+57 ${digits.slice(2, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
-  }
-  return `+${digits}`;
+  return formatPhone(digits);
 }
 
 export function SettingsAdmin() {
@@ -48,7 +46,12 @@ export function SettingsAdmin() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    void save(number.trim() || null);
+    try {
+      void save(phoneForSubmit(number));
+    } catch (err) {
+      setSaved(false);
+      setError(errorMessage(err));
+    }
   };
 
   const current = settings.data?.whatsapp_number ?? null;
@@ -60,8 +63,8 @@ export function SettingsAdmin() {
         <div>
           <h3 className="text-2xl">WhatsApp de la tienda</h3>
           <p className="muted mt-1">
-            A este número llegan los mensajes de las compras y las suscripciones. Escríbelo con el indicativo del país;
-            si es un celular colombiano puedes escribir solo los 10 dígitos.
+            A este número llegan los mensajes de las compras y las suscripciones. Escribe el celular de 10 dígitos;
+            el sistema agrega el indicativo de Colombia.
           </p>
         </div>
 
@@ -80,20 +83,18 @@ export function SettingsAdmin() {
               )}
             </p>
             <form onSubmit={submit} className="flex flex-col gap-3">
-              <Field
-                label="Número de WhatsApp"
+              <PhoneField
                 id="store-whatsapp"
-                type="tel"
-                inputMode="tel"
-                placeholder="+57 300 123 4567"
+                label="Número de WhatsApp"
+                hint="El celular de 10 dígitos al que escribirán los clientes, sin +57."
                 value={number}
-                onChange={(e) => setNumber(e.target.value)}
+                onChange={setNumber}
               />
               <div className="flex flex-wrap gap-2">
                 <Button type="submit" variant="dark" disabled={saving}>{saving ? "Guardando…" : "Guardar número"}</Button>
                 {profile?.phone && (
                   <Button type="button" disabled={saving} onClick={() => void save(profile.phone)}>
-                    Usar mi celular ({profile.phone})
+                    Usar mi celular ({formatPhone(profile.phone)})
                   </Button>
                 )}
                 {testUrl && (

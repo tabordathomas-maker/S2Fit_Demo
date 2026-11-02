@@ -38,7 +38,6 @@ describe("WhatsApp configurable", () => {
   });
 
   it("muestra el número en formato legible", () => {
-    expect(prettyWhatsApp("573001234567")).toBe("+57 300 123 4567");
-    expect(prettyWhatsApp("14155550100")).toBe("+14155550100");
+    expect(prettyWhatsApp("573001234567")).toBe("300 123 4567");
   });
 });

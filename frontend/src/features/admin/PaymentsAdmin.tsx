@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Alert, Badge, Button, Field, Pill, Select, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatCOP, formatDateTime, paymentMethodLabel, paymentStatusLabel } from "../../services/format";
+import { formatPhone } from "../../services/phone";
 import type { PaymentMethod, PaymentStatus } from "../../services/types";
 import { useAsync } from "../../services/useAsync";
 import { adminApi, type AdminPayment } from "./api";
@@ -65,7 +66,7 @@ function PaymentRow({ payment: p, onChanged }: { payment: AdminPayment; onChange
         <Badge tone={p.status === "confirmed" ? "green" : open ? "beige" : "red"}>{paymentStatusLabel[p.status]}</Badge>
       </div>
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-        <div><dt className="text-muted">Cliente</dt><dd className="font-bold">{p.customer_name ?? "—"}</dd><dd>{p.customer_email}</dd><dd>{p.customer_phone}</dd></div>
+        <div><dt className="text-muted">Cliente</dt><dd className="font-bold">{p.customer_name ?? "—"}</dd><dd>{p.customer_email}</dd><dd>{formatPhone(p.customer_phone)}</dd></div>
         <div><dt className="text-muted">Importe acordado</dt><dd className="font-bold">{p.amount ? formatCOP(p.amount) : "Sin registrar"}</dd></div>
         <div><dt className="text-muted">Medio de pago</dt><dd>{p.method ? paymentMethodLabel[p.method] : "—"}</dd></div>
         <div><dt className="text-muted">Creado</dt><dd>{formatDateTime(p.created_at)}</dd></div>
