@@ -158,3 +158,33 @@ def test_customers_cannot_upload(client):
     response = client.post("/api/v1/admin/uploads/content-media", headers=customer.headers,
                            files={"file": ("clip.mp4", b"0000", "video/mp4")})
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "filename", "content_type", "folder", "ext"),
+    [
+        ("product-image", "foto.jpg", "image/jpeg", "products", "jpg"),
+        ("content-media", "clip.mp4", "video/mp4", "content/videos", "mp4"),
+    ],
+)
+def test_upload_audit_accepts_long_public_urls(client, db, monkeypatch, endpoint, filename, content_type, folder, ext):
+    # Arrange: la URL pública de Supabase no cabe en entity_id (64 caracteres).
+    admin = create_admin(db)
+    monkeypatch.setattr(get_settings(), "supabase_service_role_key", "service-key-de-prueba")
+    monkeypatch.setattr(
+        storage, "_upload",
+        lambda content, ctype, f, e: f"https://jfmfdpvblczhajsdqncv.supabase.co/storage/v1/object/public/product-images/{folder}/0123456789abcdef01234567.{ext}",
+    )
+
+    # Act
+    response = client.post(f"/api/v1/admin/uploads/{endpoint}", headers=admin.headers,
+                           files={"file": (filename, b"0000", content_type)})
+    logs = client.get("/api/v1/admin/audit-logs", headers=admin.headers)
+
+    # Assert
+    assert response.status_code == 200
+    url = response.json()["url"]
+    assert len(url) > 64
+    first = logs.json()[0]
+    assert first["entity_id"].endswith(f"0123456789abcdef01234567.{ext}")
+    assert first["details"]["url"] == url

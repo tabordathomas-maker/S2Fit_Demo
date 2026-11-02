@@ -61,7 +61,7 @@ def list_audit_logs(
 def upload_product_image(admin: AdminUser, db: DbSession, file: Annotated[UploadFile, File()]):
     content = file.file.read(storage.MAX_IMAGE_BYTES + 1)
     url = storage.upload_product_image(content, file.content_type or "")
-    audit.record(db, admin, "upload.product_image", "storage", url, {"filename": file.filename})
+    audit.record(db, admin, "upload.product_image", "storage", storage.object_key(url), {"filename": file.filename, "url": url})
     db.commit()
     return {"url": url}
 
@@ -71,6 +71,6 @@ def upload_content_media(admin: AdminUser, db: DbSession, file: Annotated[Upload
     """Imagen de portada o video para rutinas, recetas y contenido de S2 Plus."""
     content = file.file.read(storage.MAX_VIDEO_BYTES + 1)
     url, media_type = storage.upload_content_media(content, file.content_type or "")
-    audit.record(db, admin, "upload.content_media", "storage", url, {"filename": file.filename, "type": media_type})
+    audit.record(db, admin, "upload.content_media", "storage", storage.object_key(url), {"filename": file.filename, "type": media_type, "url": url})
     db.commit()
     return {"url": url, "media_type": media_type}

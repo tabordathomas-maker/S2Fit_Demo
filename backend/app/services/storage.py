@@ -45,6 +45,11 @@ def _upload(content: bytes, content_type: str, folder: str, extension: str) -> s
     return f"{base}/storage/v1/object/public/{bucket}/{path}"
 
 
+def object_key(url: str) -> str:
+    """Ruta corta del archivo dentro del bucket (p. ej. "products/ab12.jpg"), apta para la auditoría."""
+    return "/".join(url.rstrip("/").split("/")[-2:])[-64:]
+
+
 def _ensure_configured() -> None:
     settings = get_settings()
     if not (settings.supabase_url and settings.supabase_service_role_key):
