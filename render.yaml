@@ -6,6 +6,7 @@ services:
     name: s2fit-api
     runtime: python
     plan: free
+    region: virginia
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     # El plan gratuito no admite preDeployCommand: las migraciones se aplican al arrancar.
