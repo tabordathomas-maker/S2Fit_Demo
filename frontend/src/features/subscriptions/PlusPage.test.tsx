@@ -5,7 +5,7 @@ import { config } from "../../config";
 import { ApiError } from "../../services/api";
 import type { MembershipStatus, Plan, SubscriptionRequestCreated } from "../../services/types";
 import { navigation } from "../../services/whatsapp";
-import { renderWithProviders, signedInAuth } from "../../test/utils";
+import { customerProfile, renderWithProviders, signedInAuth } from "../../test/utils";
 import { PENDING_PLAN_KEY, subscriptionsApi } from "./api";
 import { PlusPage } from "./PlusPage";
 
@@ -84,5 +84,22 @@ describe("PlusPage", () => {
     expect(await screen.findByText(/S2-SUB-PEND2345/)).toBeInTheDocument();
     expect(screen.getByText("Área exclusiva S2 Plus")).toBeInTheDocument();
     expect(screen.queryByText("Alimentación diaria")).not.toBeInTheDocument();
+  });
+
+  it("sin planes avisa que pronto abrirán y ofrece WhatsApp", async () => {
+    vi.spyOn(subscriptionsApi, "plans").mockResolvedValue([]);
+    renderWithProviders(<PlusPage />);
+
+    expect(await screen.findByText(/Pronto abriremos las suscripciones/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Escribir por WhatsApp" })).toHaveAttribute("href", expect.stringContaining("wa.me/573001234567"));
+    expect(screen.queryByText(/No hay planes activos/)).not.toBeInTheDocument();
+  });
+
+  it("sin planes, el administrador ve además el enlace al panel", async () => {
+    vi.spyOn(subscriptionsApi, "plans").mockResolvedValue([]);
+    renderWithProviders(<PlusPage />, { auth: signedInAuth({ ...customerProfile, role: "admin" }) });
+
+    expect(await screen.findByText(/No hay planes activos/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Admin → S2 Plus" })).toHaveAttribute("href", "/admin?tab=plus");
   });
 });

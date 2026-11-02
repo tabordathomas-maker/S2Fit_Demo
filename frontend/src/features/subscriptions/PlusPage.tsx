@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Alert, Badge, Button, Spinner } from "../../components/ui";
 import { errorMessage } from "../../services/api";
@@ -42,13 +42,14 @@ function writePendingPlan(code: string | null) {
 }
 
 export function PlusPage() {
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
   const navigate = useNavigate();
   const plans = useAsync(() => subscriptionsApi.plans(), []);
   const membership = useAsync<MembershipStatus | null>(
     () => (session ? subscriptionsApi.membership() : Promise.resolve(null)),
     [session?.user.id],
   );
+  const whatsappUrl = buildWhatsAppUrl("Hola, quiero información sobre S2 Plus.");
   const [pendingPlan, setPendingPlan] = useState<string | null>(readPendingPlan);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +141,21 @@ export function PlusPage() {
             <h2 className="text-[28px]">Planes</h2>
             {plans.loading && <Spinner />}
             {plans.error && <Alert>{plans.error}</Alert>}
+            {!plans.loading && !plans.error && plans.data?.length === 0 && (
+              <div className="flex flex-col gap-3">
+                <Alert tone="info">
+                  <p>Pronto abriremos las suscripciones a S2 Plus. Escríbenos por WhatsApp para más información.</p>
+                  {whatsappUrl && (
+                    <a href={whatsappUrl} target="_blank" rel="noreferrer" className="font-bold text-burgundy underline">Escribir por WhatsApp</a>
+                  )}
+                </Alert>
+                {isAdmin && (
+                  <Alert tone="info">
+                    No hay planes activos. Créalo en <Link to="/admin?tab=plus" className="font-bold text-burgundy underline">Admin → S2 Plus</Link>.
+                  </Alert>
+                )}
+              </div>
+            )}
             <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))]">
               {plans.data?.map((plan) => (
                 <article key={plan.id} className="card flex flex-col gap-4">
