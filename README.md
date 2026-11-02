@@ -30,6 +30,8 @@ Las compras y las suscripciones **se acuerdan y pagan por WhatsApp**, mediante t
 12. [Despliegue del backend en Render](#12-despliegue-del-backend-en-render)
 13. [CORS y URLs de producción](#13-cors-y-urls-de-producción)
     - [Fotos y videos desde el panel](#13-bis-fotos-y-videos-desde-el-panel)
+    - [Rutinas personalizadas](#rutinas-personalizadas)
+    - [Activar S2 Plus manualmente](#activar-s2-plus-manualmente)
 14. [Flujo de compra y suscripción por WhatsApp](#14-flujo-de-compra-y-suscripción-por-whatsapp)
 15. [Verificación administrativa de pagos](#15-verificación-administrativa-de-pagos)
 16. [Inventario y reservas](#16-inventario-y-reservas)
@@ -66,8 +68,8 @@ backend/
   app/schemas/     validación Pydantic (entradas que rechazan campos desconocidos)
   app/services/    reglas de negocio: inventario, pedidos, pagos, suscripciones, hábitos…
   app/api/v1/      routers públicos, de cliente y admin/
-  alembic/         migraciones (0001 esquema, 0002 RLS + políticas Supabase)
-  scripts/         seed_demo.py (datos de demostración) y set_role.py (administradores)
+  alembic/         migraciones (0001 esquema, 0002 RLS + políticas Supabase, 0003 ajustes, 0004 rutinas)
+  scripts/         seed_demo.py (datos de demostración), set_role.py (administradores) y grant_membership.py (S2 Plus manual)
   tests/           98 pruebas pytest (AAA) contra PostgreSQL aislado
 frontend/
   src/components/  interfaz reutilizable (botones, píldoras, encabezado…)
@@ -183,6 +185,7 @@ alembic check               # confirma que modelos y migraciones coinciden
 ```
 
 - `0001_esquema_inicial`: 20 tablas con claves foráneas, restricciones `CHECK` (existencias ≥ 0, reservadas ≤ existencias, importes positivos, estados válidos), índices y referencias únicas.
+- `0004_rutinas_personalizadas`: tablas `custom_routines`, `routine_steps` y `routine_step_completions` (con RLS y lectura de filas propias en Supabase).
 - `0003_ajustes_y_portadas`: tabla `site_settings` (WhatsApp de la tienda, editable desde el panel) y columna `content_items.cover_url` (portada de cada contenido).
 - `0002_rls_supabase`: activa RLS en todas las tablas. En Supabase crea además la clave foránea `profiles.id → auth.users.id` y políticas **de solo lectura**: cada persona ve solo sus filas, y cualquiera ve el catálogo publicado. En un PostgreSQL normal esa parte se omite automáticamente.
 
@@ -314,6 +317,40 @@ Requiere el bucket público `product-images` y `SUPABASE_SERVICE_ROLE_KEY` en el
 - **Videos y portadas de contenido**: *Admin → Contenido y retos*. En cada contenido puedes pegar un enlace de **YouTube o Vimeo** (se reproduce dentro de la página) o **subir un video** MP4/WEBM/MOV de hasta 50 MB (límite por archivo del plan gratis de Supabase), y subir una **imagen de portada**. Pulsa «Crear contenido» o «Guardar cambios» para aplicar.
 - Para videos largos conviene YouTube en modo **oculto**: no consume los 1 GB de Storage del plan gratis.
 - Los archivos del bucket son públicos: un video de S2 Plus solo se entrega a miembros activos, pero quien tenga el enlace podría compartirlo.
+
+### Rutinas personalizadas
+
+Beneficio de S2 Plus: el administrador arma una rutina para una persona concreta, hecha de pasos con video, y la persona la ve en **Mi Ruta** como un roadmap con su avance y estadísticas.
+
+1. **Admin → Rutinas personalizadas**: busca a la persona (nombre, correo o celular) y pulsa «Nueva rutina». Puedes crearla aunque no tenga S2 Plus; el panel te avisa.
+2. Agrega los **pasos** (título, bloque, series/reps, duración, instrucciones y video o portada), reordénalos con ↑ ↓ y pulsa **Activar**. Una rutina necesita al menos un paso para activarse; en borrador la persona no la ve.
+3. Con «Desbloquear pasos en orden» activo, cada paso se abre al completar el anterior.
+4. **Ver progreso** muestra lo que ve la persona: pasos completados con fecha, minutos, esfuerzo y nota.
+
+Reglas de acceso (se aplican en el backend, no solo en la pantalla):
+
+- Ver el detalle, los videos y las instrucciones, y marcar o deshacer pasos, **requiere S2 Plus activa** (la misma regla que el resto de beneficios). Sin ella la API responde 403 `plus_required`.
+- La lista sí responde sin membresía, pero solo con título, objetivo y porcentaje (`locked: true`), sin videos, portadas ni instrucciones.
+- El avance **no se borra** si la membresía vence: al renovar, continúa donde iba.
+- Los videos se suben con el mismo endpoint de contenido: MP4, WEBM o MOV de hasta **50 MB** (imágenes hasta 5 MB). Para videos largos, pega un enlace de YouTube (oculto) o Vimeo.
+- Los archivos del bucket son **públicos para quien tenga el enlace**: el backend solo entrega el enlace a miembros activos, pero alguien con la URL podría compartirla.
+
+### Activar S2 Plus manualmente
+
+Para dar o quitar S2 Plus como cortesía, sin pagos ni renovaciones, usa `scripts/grant_membership.py` desde un equipo con acceso a la base de Supabase (igual que `set_role`). La persona debe haberse registrado e iniciado sesión al menos una vez, y debe existir un plan activo.
+
+```powershell
+cd backend
+$env:DATABASE_URL = "postgresql+psycopg://USUARIO:CLAVE@HOST:5432/postgres"   # cadena de conexión de Supabase
+
+# Activar 30 días (por defecto). Si ya está vigente, extiende desde su fecha de fin.
+python -m scripts.grant_membership --email persona@correo.com --days 30
+
+# Cancelar
+python -m scripts.grant_membership --email persona@correo.com --cancel
+```
+
+Marca la suscripción con la referencia `CORTESIA-ADMIN`. Imprime, por ejemplo: `persona@correo.com: S2 Plus activa hasta 2026-12-02 (America/Bogota)`.
 
 ## 14. Flujo de compra y suscripción por WhatsApp
 

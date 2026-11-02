@@ -5,6 +5,7 @@ import { ChallengesPanel } from "../features/challenges/ChallengesPanel";
 import { RewardsGrid } from "../features/challenges/RewardsGrid";
 import { ContentTabs } from "../features/content/ContentGrid";
 import { HabitsPanel } from "../features/habits/HabitsPanel";
+import { RoutinePanel } from "../features/routines/RoutinePanel";
 import { useAsync } from "../services/useAsync";
 
 function SignedInWellness() {
@@ -14,6 +15,8 @@ function SignedInWellness() {
 
   return (
     <>
+      <RoutinePanel />
+
       <div className="card flex flex-col gap-6 p-6 sm:p-9">
         <HabitsPanel onChange={() => void rewards.reload()} />
         <p className="muted">
