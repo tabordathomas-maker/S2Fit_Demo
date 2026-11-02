@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
+import { FileUploadButton, IMAGE_ACCEPT, IMAGE_HINT } from "../../components/FileUploadButton";
 import { Alert, Badge, Button, Field, Select, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatCOP } from "../../services/format";
@@ -34,7 +35,7 @@ export function CatalogAdmin() {
       {error && <Alert>{error}</Alert>}
       <div className="grid gap-6 lg:grid-cols-2">
         <NewCategoryForm onCreate={(body) => run(() => adminApi.createCategory(body))} />
-        <NewProductForm categories={categories.data ?? []} onCreate={(body) => run(() => adminApi.createProduct(body))} />
+        <NewProductForm categories={categories.data ?? []} run={run} />
       </div>
       {products.loading && <Spinner />}
       {products.error && <Alert>{products.error}</Alert>}
@@ -60,18 +61,43 @@ function NewCategoryForm({ onCreate }: { onCreate: (body: { name: string; slug: 
   );
 }
 
-function NewProductForm({ categories, onCreate }: { categories: Category[]; onCreate: (body: Record<string, unknown>) => Promise<boolean> }) {
+function NewProductForm({ categories, run }: { categories: Category[]; run: (fn: () => Promise<unknown>) => Promise<boolean> }) {
   const [form, setForm] = useState({ name: "", category_id: "", base_price: "", description: "" });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (!photo) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(photo);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const ok = await onCreate({
-      name: form.name.trim(),
-      slug: slugify(form.name),
-      category_id: Number(form.category_id),
-      base_price: Number(form.base_price),
-      description: form.description.trim() || null,
+    setCreating(true);
+    const ok = await run(async () => {
+      const created = await adminApi.createProduct({
+        name: form.name.trim(),
+        slug: slugify(form.name),
+        category_id: Number(form.category_id),
+        base_price: Number(form.base_price),
+        description: form.description.trim() || null,
+      });
+      if (photo) {
+        const { url } = await adminApi.uploadImage(photo);
+        await adminApi.updateProduct(created.id, { image_url: url });
+      }
     });
-    if (ok) setForm({ name: "", category_id: "", base_price: "", description: "" });
+    setCreating(false);
+    if (ok) {
+      setForm({ name: "", category_id: "", base_price: "", description: "" });
+      setPhoto(null);
+    }
   };
   return (
     <form onSubmit={submit} className="card flex flex-col gap-3">
@@ -83,7 +109,11 @@ function NewProductForm({ categories, onCreate }: { categories: Category[]; onCr
       </Select>
       <Field label="Precio base (COP)" id="prod-price" type="number" min={0} required value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} />
       <TextArea label="Descripción" id="prod-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-      <Button type="submit" variant="dark" className="self-start">Crear producto</Button>
+      <div className="flex flex-wrap items-center gap-4">
+        {preview && <img src={preview} alt="Vista previa de la foto" className="h-32 w-24 rounded-xl object-cover object-top" />}
+        <FileUploadButton id="prod-photo" label={photo ? "Cambiar foto" : "Elegir foto"} accept={IMAGE_ACCEPT} hint={IMAGE_HINT} onFile={setPhoto} />
+      </div>
+      <Button type="submit" variant="dark" className="self-start" disabled={creating}>{creating ? "Creando…" : "Crear producto"}</Button>
     </form>
   );
 }
@@ -111,13 +141,19 @@ function ProductEditor({ product, categories, run }: { product: AdminProduct; ca
     );
   };
 
-  const upload = async (file: File | undefined) => {
-    if (!file) return;
-    await run(async () => {
+  const [uploading, setUploading] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const upload = async (file: File) => {
+    setUploading(true);
+    setSaved(false);
+    const ok = await run(async () => {
       const { url } = await adminApi.uploadImage(file);
       setForm((f) => ({ ...f, image_url: url }));
       await adminApi.updateProduct(product.id, { image_url: url });
     });
+    setUploading(false);
+    setSaved(ok);
   };
 
   return (
@@ -145,12 +181,23 @@ function ProductEditor({ product, categories, run }: { product: AdminProduct; ca
             <Select label="Categoría" id={`c-${product.id}`} value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Field label="Imagen (URL o ruta)" id={`i-${product.id}`} value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
-            <div className="sm:col-span-2"><TextArea label="Descripción" id={`d-${product.id}`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-            <div>
-              <label htmlFor={`u-${product.id}`} className="label">Subir foto (JPG, PNG o WEBP, máx. 5 MB)</label>
-              <input id={`u-${product.id}`} type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => void upload(e.target.files?.[0])} />
+            <div className="flex flex-col gap-2 rounded-2xl bg-cream p-4 sm:col-span-2">
+              <h4 className="font-display text-lg">Foto del producto</h4>
+              <div className="flex flex-wrap items-center gap-4">
+                <ProductImage src={form.image_url || null} alt={form.name} className="h-32 w-24 rounded-xl" />
+                <FileUploadButton id={`u-${product.id}`} label={form.image_url ? "Cambiar foto" : "Subir foto"} accept={IMAGE_ACCEPT} hint={IMAGE_HINT}
+                  busy={uploading} busyLabel="Subiendo foto…" onFile={(f) => void upload(f)} />
+              </div>
+              {saved && <p className="font-bold text-emerald-800" role="status">Foto guardada.</p>}
             </div>
+            <div className="sm:col-span-2"><TextArea label="Descripción" id={`d-${product.id}`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+            <details className="sm:col-span-2">
+              <summary className="cursor-pointer font-bold">Usar un enlace a una imagen en vez de subirla</summary>
+              <div className="mt-2 flex flex-col gap-1">
+                <Field label="Enlace de la imagen (https://…)" id={`i-${product.id}`} value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
+                <p className="text-sm text-muted">Si cambias el enlace, pulsa «Guardar producto».</p>
+              </div>
+            </details>
             <Button type="submit" variant="dark" className="self-end">Guardar producto</Button>
           </form>
           <h4 className="font-display text-lg">Variantes e inventario</h4>

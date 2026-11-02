@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 
+import { FileUploadButton, IMAGE_ACCEPT, IMAGE_HINT } from "../../components/FileUploadButton";
 import { Alert, Badge, Button, Field, Select, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatDateTime } from "../../services/format";
@@ -130,20 +131,29 @@ function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
       </Select>
       <Field label="Título" id={`${id}-title`} required minLength={2} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <Field label="Detalle corto" id={`${id}-meta`} placeholder="Video · 20 min" value={form.meta} onChange={(e) => setForm({ ...form, meta: e.target.value })} />
-      <div className="flex flex-col gap-2 sm:col-span-2">
-        <Field label="Video o recurso: enlace de YouTube, Vimeo o archivo (https)" id={`${id}-media`} type="url" pattern="https://.*"
-          placeholder="https://www.youtube.com/watch?v=…" value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} />
-        <UploadInput id={`${id}-media-file`} label="…o sube un video (MP4, WEBM o MOV, máx. 50 MB) o una imagen"
+      <div className="flex flex-col gap-3 rounded-2xl bg-cream p-4 sm:col-span-2">
+        <h4 className="font-display text-lg">Video o imagen del contenido</h4>
+        <UploadInput id={`${id}-media-file`} label={form.media_url ? "Cambiar video o imagen" : "Subir video o imagen"}
           accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/png,image/webp"
+          hint="Video MP4, WEBM o MOV de hasta 50 MB, o imagen JPG/PNG/WEBP de hasta 5 MB."
           onUploaded={(url) => setForm((f) => ({ ...f, media_url: url }))} />
+        <Field label="…o pega un enlace de YouTube o Vimeo" id={`${id}-media`} type="url" pattern="https://.*"
+          placeholder="https://www.youtube.com/watch?v=…" value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} />
         {form.media_url && <MediaPreview url={form.media_url} />}
       </div>
-      <div className="flex flex-col gap-2 sm:col-span-2">
-        <Field label="Imagen de portada (opcional)" id={`${id}-cover`} type="url" pattern="https://.*"
-          value={form.cover_url} onChange={(e) => setForm({ ...form, cover_url: e.target.value })} />
-        <UploadInput id={`${id}-cover-file`} label="…o sube la portada (JPG, PNG o WEBP, máx. 5 MB)" accept="image/jpeg,image/png,image/webp"
-          onUploaded={(url) => setForm((f) => ({ ...f, cover_url: url }))} />
+      <div className="flex flex-col gap-3 rounded-2xl bg-cream p-4 sm:col-span-2">
+        <h4 className="font-display text-lg">Portada (opcional)</h4>
         {form.cover_url && <img src={form.cover_url} alt="Portada" className="h-28 w-44 rounded-xl object-cover" />}
+        <UploadInput id={`${id}-cover-file`} label={form.cover_url ? "Cambiar portada" : "Subir portada"} accept={IMAGE_ACCEPT} hint={IMAGE_HINT}
+          onUploaded={(url) => setForm((f) => ({ ...f, cover_url: url }))} />
+        <details>
+          <summary className="cursor-pointer font-bold">Usar un enlace a una imagen</summary>
+          <div className="mt-2">
+            <Field label="Enlace de la portada (https://…)" id={`${id}-cover`} type="url" pattern="https://.*"
+              value={form.cover_url} onChange={(e) => setForm({ ...form, cover_url: e.target.value })} />
+          </div>
+        </details>
+        <p className="text-sm text-muted">Después de subir, pulsa «{initial ? "Guardar cambios" : "Crear contenido"}».</p>
       </div>
       <Select label="Franja (solo alimentación)" id={`${id}-slot`} value={form.meal_slot} onChange={(e) => setForm({ ...form, meal_slot: e.target.value })}>
         <option value="">—</option>
@@ -217,13 +227,12 @@ function NewRewardForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<b
 }
 
 /** Sube el archivo a Supabase Storage (vía la API) y devuelve la URL pública. */
-function UploadInput({ id, label, accept, onUploaded }: {
-  id: string; label: string; accept: string; onUploaded: (url: string) => void;
+function UploadInput({ id, label, accept, hint, onUploaded }: {
+  id: string; label: string; accept: string; hint?: string; onUploaded: (url: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const upload = async (file: File | undefined) => {
-    if (!file) return;
+  const upload = async (file: File) => {
     setError(null);
     setBusy(true);
     try {
@@ -236,10 +245,8 @@ function UploadInput({ id, label, accept, onUploaded }: {
     }
   };
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="label">{label}</label>
-      <input id={id} type="file" accept={accept} disabled={busy} onChange={(e) => void upload(e.target.files?.[0])} />
-      {busy && <Spinner label="Subiendo archivo… (los videos pueden tardar un poco)" />}
+    <div className="flex flex-col gap-2">
+      <FileUploadButton id={id} label={label} accept={accept} hint={hint} busy={busy} busyLabel="Subiendo… (los videos pueden tardar)" onFile={(f) => void upload(f)} />
       {error && <Alert>{error}</Alert>}
     </div>
   );
