@@ -88,3 +88,9 @@ class RedemptionStatus(StrEnum):
     requested = "requested"
     fulfilled = "fulfilled"
     cancelled = "cancelled"
+
+
+class RoutineStatus(StrEnum):
+    draft = "draft"
+    active = "active"
+    archived = "archived"

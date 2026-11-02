@@ -6,6 +6,7 @@ from app.models.catalog import Category, InventoryMovement, Product, ProductVari
 from app.models.content import ContentItem
 from app.models.orders import Order, OrderItem
 from app.models.payments import Payment
+from app.models.routines import CustomRoutine, RoutineStep, RoutineStepCompletion
 from app.models.settings import SiteSettings
 from app.models.subscriptions import Plan, Subscription, SubscriptionRenewal, SubscriptionRequest
 from app.models.user import Profile
@@ -25,6 +26,7 @@ __all__ = [
     "Challenge",
     "ChallengeParticipation",
     "ContentItem",
+    "CustomRoutine",
     "HabitLog",
     "InventoryMovement",
     "Order",
@@ -37,6 +39,8 @@ __all__ = [
     "Reward",
     "SiteSettings",
     "RewardRedemption",
+    "RoutineStep",
+    "RoutineStepCompletion",
     "Subscription",
     "SubscriptionRenewal",
     "SubscriptionRequest",
