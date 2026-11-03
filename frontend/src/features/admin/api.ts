@@ -1,6 +1,6 @@
 import { apiFetch } from "../../services/api";
 import type { RoutineDetail } from "../routines/api";
-import type { Category, ContentKind, Order, PaymentMethod, PaymentStatus, Plan, Profile, Subscription, SubscriptionRequest } from "../../services/types";
+import type { AdminMembership, AdminProfile, Category, ContentKind, Order, PaymentMethod, PaymentStatus, Plan, Subscription, SubscriptionRequest } from "../../services/types";
 
 export interface AdminPayment {
   id: string;
@@ -222,6 +222,11 @@ export const adminApi = {
   subscriptions: (status?: string) => apiFetch<AdminSubscription[]>(`${A}/subscriptions`, { query: { status } }),
   cancelSubscription: (id: string, reason: string) => post<AdminSubscription>(`/subscriptions/${id}/cancel`, { reason }),
 
+  membership: (userId: string) => apiFetch<AdminMembership>(`${A}/users/${userId}/membership`),
+  grantMembership: (userId: string, days: number, reason: string) =>
+    post<AdminMembership>(`/users/${userId}/membership/grant`, { days, reason }),
+  cancelMembership: (userId: string, reason: string) => post<AdminMembership>(`/users/${userId}/membership/cancel`, { reason }),
+
   content: () => apiFetch<AdminContent[]>(`${A}/content`),
   createContent: (body: Record<string, unknown>) => post<AdminContent>("/content", body),
   updateContent: (id: number, body: Record<string, unknown>) => patch<AdminContent>(`/content/${id}`, body),
@@ -246,6 +251,6 @@ export const adminApi = {
     apiFetch<AdminRoutineDetail>(`${A}/routines/${id}/steps/order`, { method: "PUT", body: { step_ids } }),
   routineProgress: (id: number) => apiFetch<RoutineDetail>(`${A}/routines/${id}/progress`),
 
-  profiles: (q?: string) => apiFetch<Profile[]>(`${A}/profiles`, { query: { q } }),
+  profiles: (q?: string) => apiFetch<AdminProfile[]>(`${A}/profiles`, { query: { q } }),
   auditLogs: (action?: string) => apiFetch<AuditLog[]>(`${A}/audit-logs`, { query: { action } }),
 };

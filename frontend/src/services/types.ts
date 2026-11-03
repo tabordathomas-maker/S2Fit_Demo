@@ -11,6 +11,21 @@ export interface Profile {
   created_at: string;
 }
 
+export type PlusStatus = "active" | "expired" | "cancelled" | "pending_payment" | "none";
+
+export interface AdminProfile extends Profile {
+  plus_status: PlusStatus;
+  plus_ends_at: string | null;
+}
+
+export interface AdminMembership {
+  status: PlusStatus;
+  plan_name: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  is_active: boolean;
+}
+
 export interface Category {
   id: number;
   name: string;

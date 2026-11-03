@@ -5,7 +5,7 @@ import { customerProfile, renderWithProviders } from "../../test/utils";
 import { adminApi, type AdminRoutineDetail } from "./api";
 import { RoutinesAdmin } from "./RoutinesAdmin";
 
-const laura = { ...customerProfile, id: "u-laura", full_name: "Laura Gómez", email: "laura@example.com", phone: "3001234567" };
+const laura = { ...customerProfile, id: "u-laura", full_name: "Laura Gómez", email: "laura@example.com", phone: "3001234567", plus_status: "none" as const, plus_ends_at: null };
 const detail: AdminRoutineDetail = {
   id: 7, user_id: "u-laura", user_email: laura.email, user_name: laura.full_name, has_plus: false, plus_until: null,
   title: "Piernas", description: null, goal: null, status: "draft", sequential: true, step_count: 0, progress_pct: 0,

@@ -7,15 +7,25 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import AdminUser, DbSession
-from app.models import AdminAuditLog, Profile
+from app.core import clock
+from app.models import AdminAuditLog, Profile, Subscription
+from app.models.enums import SubscriptionStatus
 from app.schemas.admin import AuditLogOut, MediaUploadResult, UploadResult
-from app.schemas.profile import ProfileOut
+from app.schemas.profile import AdminProfileOut, ProfileOut
 from app.services import audit, storage
 
 router = APIRouter(tags=["admin: usuarios y auditoría"])
 
 
-@router.get("/profiles", response_model=list[ProfileOut])
+def plus_status_of(status: str | None, ends_at, now) -> str:
+    if status is None:
+        return "none"
+    if status == SubscriptionStatus.active and (ends_at is None or ends_at <= now):
+        return "expired"
+    return status
+
+
+@router.get("/profiles", response_model=list[AdminProfileOut])
 def list_profiles(
     _: AdminUser,
     db: DbSession,
@@ -23,11 +33,18 @@ def list_profiles(
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    stmt = select(Profile)
+    stmt = select(Profile, Subscription.status, Subscription.ends_at).outerjoin(
+        Subscription, Subscription.user_id == Profile.id
+    )
     if q:
         pattern = f"%{q.strip()}%"
         stmt = stmt.where(or_(Profile.email.ilike(pattern), Profile.full_name.ilike(pattern), Profile.phone.ilike(pattern)))
-    return db.scalars(stmt.order_by(Profile.created_at.desc()).limit(limit).offset(offset)).all()
+    rows = db.execute(stmt.order_by(Profile.created_at.desc()).limit(limit).offset(offset)).all()
+    now = clock.now()
+    return [
+        {**ProfileOut.model_validate(p).model_dump(), "plus_status": plus_status_of(st, ends, now), "plus_ends_at": ends}
+        for p, st, ends in rows
+    ]
 
 
 @router.get("/audit-logs", response_model=list[AuditLogOut])

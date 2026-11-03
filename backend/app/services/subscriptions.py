@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core import clock
 from app.core.errors import conflict, not_found
 from app.core.references import new_reference
 from app.models import Payment, Plan, Profile, Subscription, SubscriptionRenewal, SubscriptionRequest
@@ -209,4 +210,51 @@ def cancel_subscription(db: Session, subscription_id: uuid.UUID, admin: Profile,
     sub.cancelled_at = now
     audit.record(db, admin, "subscription.cancel", "subscription", sub.id,
                  {"previous_status": previous, "reason": reason, "user_id": str(sub.user_id)})
+    return sub
+
+
+MANUAL_REFERENCE = "MANUAL-ADMIN"
+
+
+def grant_membership(db: Session, user: Profile, days: int, admin: Profile | None, reason: str) -> Subscription:
+    """Activa o extiende S2 Plus a mano (cortesías, pruebas, pagos en efectivo). No crea pagos ni renovaciones.
+
+    Con `admin=None` (scripts de terminal) no se audita, porque el registro exige un administrador.
+    """
+    plan = db.scalars(select(Plan).where(Plan.is_active.is_(True)).order_by(Plan.sort_order, Plan.id)).first()
+    if plan is None:
+        raise conflict("plans_missing", "Primero crea un plan en Admin → S2 Plus.")
+
+    now = clock.now()
+    sub = get_user_subscription(db, user.id, lock=True)
+    if sub is None:
+        sub = Subscription(user_id=user.id, plan_id=plan.id)
+        db.add(sub)
+
+    current = sub.status == SubscriptionStatus.active and sub.ends_at is not None and sub.ends_at > now
+    start = sub.ends_at if current else now
+    if not current:
+        sub.starts_at = now
+    sub.plan_id = plan.id
+    sub.status = SubscriptionStatus.active
+    sub.ends_at = start + timedelta(days=days)
+    sub.cancelled_at = None
+    sub.last_payment_reference = MANUAL_REFERENCE
+    db.flush()
+    if admin is not None:
+        audit.record(db, admin, "membership.grant", "subscription", sub.id,
+                     {"days": days, "reason": reason, "ends_at": sub.ends_at.isoformat(), "user_id": str(user.id)})
+    return sub
+
+
+def cancel_membership(db: Session, user: Profile, admin: Profile | None, reason: str) -> Subscription:
+    now = clock.now()
+    sub = get_user_subscription(db, user.id, lock=True)
+    if sub is None or sub.status != SubscriptionStatus.active or sub.ends_at is None or sub.ends_at <= now:
+        raise conflict("no_active_membership", "Esta persona no tiene S2 Plus activa.")
+    sub.status = SubscriptionStatus.cancelled
+    sub.cancelled_at = now
+    if admin is not None:
+        audit.record(db, admin, "membership.cancel", "subscription", sub.id,
+                     {"reason": reason, "ends_at": sub.ends_at.isoformat(), "user_id": str(user.id)})
     return sub

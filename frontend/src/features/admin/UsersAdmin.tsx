@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Alert, Badge, Spinner } from "../../components/ui";
-import { formatDateTime } from "../../services/format";
+import { formatDateTime, plusStatusText } from "../../services/format";
 import { formatPhone } from "../../services/phone";
 import { useAsync } from "../../services/useAsync";
 import { adminApi } from "./api";
@@ -25,13 +25,14 @@ export function UsersAdmin() {
         {profiles.loading && <Spinner />}
         {profiles.error && <Alert>{profiles.error}</Alert>}
         <div className="overflow-x-auto rounded-3xl bg-white p-4">
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead><tr className="border-b border-beige"><th className="py-2">Nombre</th><th>Correo</th><th>Celular</th><th>Rol</th><th>Registro</th></tr></thead>
+          <table className="w-full min-w-[680px] text-left text-sm">
+            <thead><tr className="border-b border-beige"><th className="py-2">Nombre</th><th>Correo</th><th>Celular</th><th>Rol</th><th>S2 Plus</th><th>Registro</th></tr></thead>
             <tbody>
               {profiles.data?.map((p) => (
                 <tr key={p.id} className="border-b border-beige/60">
                   <td className="py-2">{p.full_name ?? "—"}</td><td>{p.email}</td><td>{p.phone ? formatPhone(p.phone) : "—"}</td>
                   <td><Badge tone={p.role === "admin" ? "burgundy" : "beige"}>{p.role}</Badge></td>
+                  <td>{plusStatusText(p.plus_status, p.plus_ends_at)}</td>
                   <td>{formatDateTime(p.created_at)}</td>
                 </tr>
               ))}

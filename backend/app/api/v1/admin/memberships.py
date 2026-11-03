@@ -5,17 +5,20 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import AdminUser, DbSession
 from app.core import clock
 from app.core.errors import not_found
-from app.models import Plan, Subscription, SubscriptionRequest
+from app.models import Plan, Profile, Subscription, SubscriptionRequest
 from app.models.enums import SubscriptionRequestStatus, SubscriptionStatus
 from app.schemas.subscriptions import (
     AdminSubscriptionOut,
     AdminSubscriptionRequestOut,
     AgreedTerms,
+    MembershipCancel,
+    MembershipGrant,
+    MembershipOut,
     PlanCreate,
     PlanOut,
     PlanUpdate,
@@ -137,3 +140,47 @@ def cancel_subscription(subscription_id: uuid.UUID, data: SubscriptionCancel, ad
     db.commit()
     db.refresh(sub)
     return _present_subscription(sub)
+
+
+# --- S2 Plus manual (cortesías, pruebas, pagos en efectivo) ---
+
+
+def _get_user(db: Session, user_id: uuid.UUID) -> Profile:
+    user = db.get(Profile, user_id)
+    if user is None:
+        raise not_found("La persona no existe.")
+    return user
+
+
+def _present_membership(sub: Subscription | None) -> dict:
+    if sub is None:
+        return {"status": "none", "plan_name": None, "starts_at": None, "ends_at": None, "is_active": False}
+    now = clock.now()
+    is_active = sub.status == SubscriptionStatus.active and sub.ends_at is not None and sub.ends_at > now
+    status = "expired" if sub.status == SubscriptionStatus.active and not is_active else sub.status
+    return {"status": status, "plan_name": sub.plan.name, "starts_at": sub.starts_at, "ends_at": sub.ends_at,
+            "is_active": is_active}
+
+
+@router.get("/users/{user_id}/membership", response_model=MembershipOut)
+def get_membership(user_id: uuid.UUID, _: AdminUser, db: DbSession):
+    user = _get_user(db, user_id)
+    return _present_membership(subscriptions.get_user_subscription(db, user.id))
+
+
+@router.post("/users/{user_id}/membership/grant", response_model=MembershipOut)
+def grant_membership(user_id: uuid.UUID, data: MembershipGrant, admin: AdminUser, db: DbSession):
+    user = _get_user(db, user_id)
+    sub = subscriptions.grant_membership(db, user, data.days, admin, data.reason)
+    db.commit()
+    db.refresh(sub)
+    return _present_membership(sub)
+
+
+@router.post("/users/{user_id}/membership/cancel", response_model=MembershipOut)
+def cancel_membership(user_id: uuid.UUID, data: MembershipCancel, admin: AdminUser, db: DbSession):
+    user = _get_user(db, user_id)
+    sub = subscriptions.cancel_membership(db, user, admin, data.reason)
+    db.commit()
+    db.refresh(sub)
+    return _present_membership(sub)

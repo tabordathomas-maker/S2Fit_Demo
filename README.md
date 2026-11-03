@@ -337,20 +337,33 @@ Reglas de acceso (se aplican en el backend, no solo en la pantalla):
 
 ### Activar S2 Plus manualmente
 
-Para dar o quitar S2 Plus como cortesía, sin pagos ni renovaciones, usa `scripts/grant_membership.py` desde un equipo con acceso a la base de Supabase (igual que `set_role`). La persona debe haberse registrado e iniciado sesión al menos una vez, y debe existir un plan activo.
+Sirve para cortesías, pruebas y pagos recibidos en efectivo. No crea pagos ni renovaciones: marca la suscripción con la referencia `MANUAL-ADMIN`. Si la persona ya tiene S2 Plus vigente, la **extiende** desde su fecha de fin; si está vencida o cancelada, empieza hoy. Usa el primer plan activo (si no hay ninguno, primero crea uno en Admin → S2 Plus).
+
+**Desde el panel (cualquier administrador)**
+
+1. Entra a Admin → pestaña **S2 Plus** → sección «Activar S2 Plus manualmente».
+2. Busca a la persona por nombre, correo o celular y elígela; verás su estado actual.
+3. Escoge la duración (30, 90, 365 días u «Otro»), escribe el motivo (obligatorio) y pulsa «Activar S2 Plus» (o «Extender S2 Plus»). Antes de confirmar se muestra la fecha resultante.
+4. Para quitarlo, usa «Cancelar S2 Plus» (también pide motivo y confirmación).
+
+Cada acción queda en la auditoría (`membership.grant` / `membership.cancel`) con los días, el motivo y la fecha de fin. La columna «S2 Plus» de Usuarios y auditoría muestra el estado de cada persona. Si la clienta pagó por WhatsApp, lo ideal es confirmar su pago en la pestaña **Pagos** para que quede el registro del dinero.
+
+**Desde la terminal (script)**
+
+Con `scripts/grant_membership.py`, desde un equipo con acceso a la base de Supabase (igual que `set_role`). La persona debe haberse registrado e iniciado sesión al menos una vez.
 
 ```powershell
 cd backend
 $env:DATABASE_URL = "postgresql+psycopg://USUARIO:CLAVE@HOST:5432/postgres"   # cadena de conexión de Supabase
 
-# Activar 30 días (por defecto). Si ya está vigente, extiende desde su fecha de fin.
-python -m scripts.grant_membership --email persona@correo.com --days 30
+# Activar o extender
+python -m scripts.grant_membership --email persona@correo.com --days 30 --reason "Cortesía"
 
 # Cancelar
-python -m scripts.grant_membership --email persona@correo.com --cancel
+python -m scripts.grant_membership --email persona@correo.com --cancel --reason "Fin de prueba"
 ```
 
-Marca la suscripción con la referencia `CORTESIA-ADMIN`. Imprime, por ejemplo: `persona@correo.com: S2 Plus activa hasta 2026-12-02 (America/Bogota)`.
+El script usa la misma lógica que el panel, pero actúa como «sistema»: no deja registro de auditoría (ese registro exige un administrador), así que el motivo solo se muestra en pantalla. Imprime, por ejemplo: `persona@correo.com: S2 Plus activa hasta 2026-12-02 (America/Bogota). Motivo: Cortesía`.
 
 ## 14. Flujo de compra y suscripción por WhatsApp
 

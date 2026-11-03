@@ -110,3 +110,20 @@ class AgreedTerms(InputModel):
 
 class SubscriptionCancel(InputModel):
     reason: str = Field(min_length=3, max_length=500)
+
+
+class MembershipGrant(InputModel):
+    days: int = Field(ge=1, le=3650)
+    reason: str = Field(min_length=3, max_length=200)
+
+
+class MembershipCancel(InputModel):
+    reason: str = Field(min_length=3, max_length=200)
+
+
+class MembershipOut(ORMModel):
+    status: str
+    plan_name: str | None
+    starts_at: datetime | None
+    ends_at: datetime | None
+    is_active: bool

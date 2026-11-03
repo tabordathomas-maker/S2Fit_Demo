@@ -16,6 +16,11 @@ class ProfileOut(ORMModel):
     created_at: datetime
 
 
+class AdminProfileOut(ProfileOut):
+    plus_status: str
+    plus_ends_at: datetime | None
+
+
 class ProfileUpdate(InputModel):
     # El rol no está aquí a propósito: nunca se modifica desde el cliente.
     full_name: str | None = Field(default=None, min_length=2, max_length=120)

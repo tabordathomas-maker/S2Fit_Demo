@@ -6,6 +6,7 @@ import { formatCOP, formatDate, formatDateTime, paymentStatusLabel, subscription
 import type { Plan } from "../../services/types";
 import { useAsync } from "../../services/useAsync";
 import { adminApi } from "./api";
+import { ManualMembership } from "./ManualMembership";
 
 export function MembershipsAdmin() {
   const plans = useAsync(() => adminApi.plans(), []);
@@ -33,6 +34,8 @@ export function MembershipsAdmin() {
   return (
     <div className="flex flex-col gap-8">
       {error && <Alert>{error}</Alert>}
+
+      <ManualMembership plans={plans.data} onChanged={() => void subs.reload()} />
 
       <section className="flex flex-col gap-4">
         <h3 className="text-2xl">Planes</h3>
