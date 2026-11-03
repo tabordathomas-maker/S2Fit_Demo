@@ -48,6 +48,7 @@ def _present_subscription(s: Subscription) -> dict:
         "user_id": s.user_id,
         "customer_email": s.user.email,
         "customer_name": s.user.full_name,
+        "customer_phone": s.user.phone,
     }
 
 

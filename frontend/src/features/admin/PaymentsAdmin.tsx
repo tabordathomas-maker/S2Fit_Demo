@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 
 import { Alert, Badge, Button, Field, Pill, Select, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
-import { formatCOP, formatDateTime, paymentMethodLabel, paymentStatusLabel } from "../../services/format";
+import { formatCOP, formatDateTime, formatShortDate, paymentMethodLabel, paymentStatusLabel } from "../../services/format";
 import { formatPhone } from "../../services/phone";
 import type { PaymentMethod, PaymentStatus } from "../../services/types";
 import { useAsync } from "../../services/useAsync";
@@ -19,6 +20,13 @@ const METHODS = Object.entries(paymentMethodLabel) as [PaymentMethod, string][];
 export function PaymentsAdmin() {
   const [filter, setFilter] = useState(0);
   const payments = useAsync(() => adminApi.payments(FILTERS[filter].statuses), [filter]);
+  // Al confirmar, el pago sale de "Por verificar": se deja a la vista con su mensaje hasta que se cambie de bandeja.
+  const [confirmed, setConfirmed] = useState<AdminPayment[]>([]);
+  const changeFilter = (i: number) => {
+    setConfirmed([]);
+    setFilter(i);
+  };
+  const visible = payments.data?.filter((p) => !confirmed.some((c) => c.id === p.id));
 
   return (
     <div className="flex flex-col gap-5">
@@ -26,23 +34,45 @@ export function PaymentsAdmin() {
         Confirma un pago solo después de comprobar en el convenio (banco, corresponsal…) que el dinero llegó. El comprobante enviado por WhatsApp ayuda a ubicar la operación, pero no es prueba suficiente.
       </Alert>
       <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f, i) => <Pill key={f.label} active={i === filter} onClick={() => setFilter(i)}>{f.label}</Pill>)}
+        {FILTERS.map((f, i) => <Pill key={f.label} active={i === filter} onClick={() => changeFilter(i)}>{f.label}</Pill>)}
       </div>
       {payments.loading && <Spinner />}
       {payments.error && <Alert>{payments.error}</Alert>}
-      {payments.data?.length === 0 && <p className="muted">No hay pagos en esta bandeja.</p>}
+      {visible?.length === 0 && confirmed.length === 0 && <p className="muted">No hay pagos en esta bandeja.</p>}
       <ul className="flex flex-col gap-4">
-        {payments.data?.map((p) => <PaymentRow key={p.id} payment={p} onChanged={payments.reload} />)}
+        {confirmed.map((p) => <ConfirmedNotice key={p.id} payment={p} />)}
+        {visible?.map((p) => (
+          <PaymentRow key={p.id} payment={p} onChanged={payments.reload} onConfirmed={(done) => setConfirmed((prev) => [done, ...prev])} />
+        ))}
       </ul>
     </div>
   );
 }
 
-function PaymentRow({ payment: p, onChanged }: { payment: AdminPayment; onChanged: () => Promise<void> }) {
-  const [mode, setMode] = useState<"none" | "confirm" | "reject" | "review" | "refund" | "terms">("none");
-  const [error, setError] = useState<string | null>(null);
+function ConfirmedNotice({ payment: p }: { payment: AdminPayment }) {
+  const message = p.kind === "subscription"
+    ? `Pago confirmado. S2 Plus de ${p.customer_name ?? p.customer_email} activa hasta ${formatShortDate(p.subscription_ends_at)}.`
+    : `Pago confirmado. Pedido de ${p.customer_name ?? p.customer_email} listo para preparar.`;
+  return (
+    <li className="card flex flex-col gap-2 p-5">
+      <span className="font-mono font-bold">{p.operation_reference}</span>
+      <Alert tone="success">{message}</Alert>
+      {p.kind === "subscription" && <Link className="font-bold text-burgundy underline" to="/admin?tab=plus">Ver en S2 Plus</Link>}
+    </li>
+  );
+}
+
+function PaymentRow({ payment: p, onChanged, onConfirmed }: {
+  payment: AdminPayment; onChanged: () => Promise<void>; onConfirmed: (payment: AdminPayment) => void;
+}) {
   const open = p.status === "pending" || p.status === "in_review";
   const needsTerms = p.kind === "subscription" && open && p.amount === null;
+  const [mode, setMode] = useState<"none" | "confirm" | "reject" | "review" | "refund" | "terms">(needsTerms ? "terms" : "none");
+  const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  }, [error]);
   const reservationExpired = p.reservation_expires_at !== null && new Date(p.reservation_expires_at) < new Date();
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -50,6 +80,17 @@ function PaymentRow({ payment: p, onChanged }: { payment: AdminPayment; onChange
     try {
       await fn();
       setMode("none");
+      await onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  };
+
+  const confirm = async (body: Parameters<typeof adminApi.confirmPayment>[1]) => {
+    setError(null);
+    try {
+      const done = await adminApi.confirmPayment(p.id, body);
+      onConfirmed(done);
       await onChanged();
     } catch (err) {
       setError(errorMessage(err));
@@ -82,18 +123,23 @@ function PaymentRow({ payment: p, onChanged }: { payment: AdminPayment; onChange
       </dl>
 
       <div className="flex flex-wrap gap-2">
-        {needsTerms && <Button variant="dark" onClick={() => setMode("terms")}>Registrar precio acordado</Button>}
-        {open && !needsTerms && <Button variant="dark" onClick={() => setMode("confirm")}>Confirmar pago</Button>}
-        {open && p.status === "pending" && <Button onClick={() => setMode("review")}>Marcar en revisión</Button>}
+        {open && <Button variant="dark" disabled={needsTerms} onClick={() => setMode("confirm")}>Confirmar pago</Button>}
+        {open && p.status === "pending" && (
+          <Button title="Solo marca que lo estás revisando; no activa la membresía." onClick={() => setMode("review")}>Marcar en revisión</Button>
+        )}
         {open && <Button onClick={() => setMode("reject")}>Rechazar</Button>}
         {p.status === "confirmed" && <Button onClick={() => setMode("refund")}>Registrar reembolso</Button>}
       </div>
-      {error && <Alert>{error}</Alert>}
+      {needsTerms && <p className="text-sm font-bold text-burgundy">Primero registra el precio acordado.</p>}
+      {open && p.status === "pending" && (
+        <p className="text-sm text-muted">«Marcar en revisión» solo marca que lo estás revisando; no activa la membresía ni el pedido.</p>
+      )}
+      {error && <div ref={errorRef}><Alert>{error}</Alert></div>}
 
       {mode === "terms" && p.subscription_request_id && (
         <TermsForm onCancel={() => setMode("none")} onSubmit={(price, days) => run(() => adminApi.setTerms(p.subscription_request_id!, price, days))} />
       )}
-      {mode === "confirm" && <ConfirmForm payment={p} onCancel={() => setMode("none")} onSubmit={(body) => run(() => adminApi.confirmPayment(p.id, body))} />}
+      {mode === "confirm" && <ConfirmForm payment={p} onCancel={() => setMode("none")} onSubmit={(body) => confirm(body)} />}
       {mode === "review" && (
         <NotesForm label="Notas de revisión" withMethod submitLabel="Guardar" onCancel={() => setMode("none")}
           onSubmit={(notes, method) => run(() => adminApi.reviewPayment(p.id, { admin_notes: notes || undefined, method }))} />

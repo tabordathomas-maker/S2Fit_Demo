@@ -18,6 +18,7 @@ export interface AdminPayment {
   order_id: string | null;
   subscription_request_id: string | null;
   plan_name: string | null;
+  subscription_ends_at: string | null;
   external_reference: string | null;
   admin_notes: string | null;
   decided_by: string | null;
@@ -70,6 +71,7 @@ export interface AdminSubscription extends Subscription {
   user_id: string;
   customer_email: string | null;
   customer_name: string | null;
+  customer_phone: string | null;
 }
 
 export interface AdminContent {

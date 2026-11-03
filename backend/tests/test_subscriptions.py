@@ -136,6 +136,33 @@ def test_confirmed_payment_activates_membership_and_unlocks_content(client, db, 
     assert db.query(AdminAuditLog).filter_by(action="subscription_request.set_terms").count() == 1
 
 
+def test_admin_panels_show_active_membership_after_confirming_payment(client, db, frozen_clock):
+    # Arrange
+    create_plan(db)
+    admin, user = create_admin(db), new_user()
+    request = _request(client, user).json()
+    pending_before = client.get("/api/v1/admin/subscription-requests?status=pending_payment", headers=admin.headers).json()
+    assert [r["id"] for r in pending_before] == [request["id"]]
+
+    # Act
+    confirmed = _pay(client, admin, request, price=60_000, days=30)
+    subs = client.get("/api/v1/admin/subscriptions", headers=admin.headers).json()
+    active = client.get("/api/v1/admin/subscriptions?status=active", headers=admin.headers).json()
+    pending_after = client.get("/api/v1/admin/subscription-requests?status=pending_payment", headers=admin.headers).json()
+    payments = client.get("/api/v1/admin/payments?status=confirmed", headers=admin.headers).json()
+
+    # Assert
+    assert confirmed.status_code == 200
+    sub = next(s for s in subs if s["user_id"] == str(user.id))
+    assert sub["status"] == "active" and sub["ends_at"] and sub["amount_paid"] == 60_000
+    assert [s["id"] for s in active] == [sub["id"]]
+    assert request["id"] not in [r["id"] for r in pending_after]
+    payment = next(p for p in payments if p["subscription_request_id"] == request["id"])
+    assert payment["status"] == "confirmed"
+    assert datetime.fromisoformat(payment["subscription_ends_at"]) == datetime.fromisoformat(sub["ends_at"])
+    assert datetime.fromisoformat(confirmed.json()["subscription_ends_at"]) == datetime.fromisoformat(sub["ends_at"])
+
+
 def test_early_renewal_extends_from_current_end_date(client, db, frozen_clock):
     # Arrange
     create_plan(db)

@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from pydantic import Field
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import AdminUser, DbSession
 from app.core import clock
@@ -17,7 +17,7 @@ from app.schemas.admin import ExpiredSweepResult
 from app.schemas.common import InputModel
 from app.schemas.orders import AdminOrderOut, OrderOut
 from app.schemas.payments import AdminPaymentOut, PaymentConfirm, PaymentReject, PaymentRefund, PaymentReview
-from app.services import audit, inventory, orders, payments
+from app.services import audit, inventory, orders, payments, subscriptions
 
 router = APIRouter(tags=["admin: ventas y pagos"])
 
@@ -35,8 +35,13 @@ def _present_order(order: Order) -> dict:
     }
 
 
-def present_payment(p: Payment) -> dict:
+def present_payment(p: Payment, db: Session | None = None) -> dict:
     request = p.subscription_request
+    sub = (
+        subscriptions.get_user_subscription(db, p.user_id)
+        if db is not None and request is not None and p.status == PaymentStatus.confirmed
+        else None
+    )
     return {
         "id": p.id,
         "kind": p.kind,
@@ -53,6 +58,7 @@ def present_payment(p: Payment) -> dict:
         "order_id": p.order_id,
         "subscription_request_id": p.subscription_request_id,
         "plan_name": request.plan.name if request else None,
+        "subscription_ends_at": sub.ends_at if sub else None,
         "external_reference": p.external_reference,
         "admin_notes": p.admin_notes,
         "decided_by": p.decided_by,
@@ -68,7 +74,7 @@ def _load_payment(db: DbSession, payment_id: uuid.UUID) -> dict:
     ).one_or_none()
     if payment is None:
         raise not_found("El pago no existe.")
-    return present_payment(payment)
+    return present_payment(payment, db)
 
 
 # --- Pedidos ---
@@ -132,7 +138,7 @@ def list_payments(
     if status:
         stmt = stmt.where(Payment.status.in_(status))
     rows = db.scalars(stmt.order_by(Payment.created_at.desc()).limit(limit).offset(offset))
-    return [present_payment(p) for p in rows]
+    return [present_payment(p, db) for p in rows]
 
 
 @router.post("/payments/{payment_id}/review", response_model=AdminPaymentOut)

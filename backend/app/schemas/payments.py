@@ -26,6 +26,7 @@ class AdminPaymentOut(PaymentOut):
     order_id: uuid.UUID | None
     subscription_request_id: uuid.UUID | None
     plan_name: str | None
+    subscription_ends_at: datetime | None = None
     external_reference: str | None
     admin_notes: str | None
     decided_by: uuid.UUID | None

@@ -1,24 +1,70 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { Alert, Badge, Button, Field, Spinner, TextArea } from "../../components/ui";
+import { Alert, Badge, Button, Field, Pill, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
-import { formatCOP, formatDate, formatDateTime, paymentStatusLabel, subscriptionStatusLabel } from "../../services/format";
+import { formatCOP, formatDate, formatDateTime, paymentStatusLabel, plusStatusText, subscriptionStatusLabel } from "../../services/format";
+import { formatPhone } from "../../services/phone";
 import type { Plan } from "../../services/types";
 import { useAsync } from "../../services/useAsync";
-import { adminApi } from "./api";
+import { adminApi, type AdminSubscription } from "./api";
 import { ManualMembership } from "./ManualMembership";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type SubFilter = "active" | "expiring" | "expired" | "cancelled" | "all";
+const SUB_FILTERS: { id: SubFilter; label: string }[] = [
+  { id: "active", label: "Activas" },
+  { id: "expiring", label: "Por vencer en 7 días" },
+  { id: "expired", label: "Vencidas" },
+  { id: "cancelled", label: "Canceladas" },
+  { id: "all", label: "Todas" },
+];
+
+function daysLeft(endsAt: string | null): number | null {
+  return endsAt ? Math.ceil((new Date(endsAt).getTime() - Date.now()) / DAY_MS) : null;
+}
+
+function matchesFilter(s: AdminSubscription, filter: SubFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "expiring") {
+    const left = daysLeft(s.ends_at);
+    return s.status === "active" && left !== null && left <= 7;
+  }
+  return s.status === filter;
+}
+
+function expiryText(left: number): string {
+  if (left <= 0) return "vence en menos de 1 día";
+  return left === 1 ? "vence en 1 día" : `vence en ${left} días`;
+}
 
 export function MembershipsAdmin() {
   const plans = useAsync(() => adminApi.plans(), []);
   const requests = useAsync(() => adminApi.subscriptionRequests("pending_payment"), []);
   const subs = useAsync(() => adminApi.subscriptions(), []);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<SubFilter>("active");
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+
+  const reloadAll = () => Promise.all([plans.reload(), requests.reload(), subs.reload()]);
+
+  // Un pago confirmado en la pestaña Pagos no avisa a esta pantalla: se recarga al volver a verla.
+  const reloadRef = useRef(reloadAll);
+  reloadRef.current = reloadAll;
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void reloadRef.current();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   const run = async (fn: () => Promise<unknown>) => {
     setError(null);
     try {
       await fn();
-      await Promise.all([plans.reload(), requests.reload(), subs.reload()]);
+      await reloadAll();
       return true;
     } catch (err) {
       setError(errorMessage(err));
@@ -26,29 +72,83 @@ export function MembershipsAdmin() {
     }
   };
 
-  const cancel = (id: string) => {
-    const reason = window.prompt("Motivo de la cancelación:");
-    if (reason && reason.trim().length >= 3) void run(() => adminApi.cancelSubscription(id, reason.trim()));
+  const startCancel = (id: string) => {
+    setCancelling(id);
+    setReason("");
+    setError(null);
   };
+
+  const confirmCancel = async (id: string) => {
+    if (reason.trim().length < 3) return setError("Escribe el motivo de la cancelación (mínimo 3 letras).");
+    if (await run(() => adminApi.cancelSubscription(id, reason.trim()))) setCancelling(null);
+  };
+
+  const activeCount = subs.data?.filter((s) => s.status === "active").length ?? 0;
+  const shown = subs.data?.filter((s) => matchesFilter(s, filter));
 
   return (
     <div className="flex flex-col gap-8">
       {error && <Alert>{error}</Alert>}
 
+      <section className="flex flex-col gap-4" aria-label="Membresías">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-2xl">Membresías activas ({activeCount})</h3>
+          <Button onClick={() => void reloadAll()} disabled={subs.loading}>Actualizar</Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {SUB_FILTERS.map((f) => <Pill key={f.id} active={f.id === filter} onClick={() => setFilter(f.id)}>{f.label}</Pill>)}
+        </div>
+        {subs.loading && <Spinner />}
+        {subs.error && <Alert>{subs.error}</Alert>}
+        {shown?.length === 0 && <p className="muted">No hay membresías en este filtro.</p>}
+        <ul className="flex flex-col gap-2">
+          {shown?.map((s) => {
+            const left = daysLeft(s.ends_at);
+            const active = s.status === "active";
+            return (
+              <li key={s.id} className={`card flex flex-col gap-2 p-4 text-sm ${active ? "border-2 border-emerald-300" : ""}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold">{s.customer_name ?? "—"}</span>
+                  <Badge tone={active ? "green" : "gray"}>{subscriptionStatusLabel[s.status]}</Badge>
+                </div>
+                <span>{s.customer_email ?? "—"}{s.customer_phone ? ` · ${formatPhone(s.customer_phone)}` : ""}</span>
+                <span>{s.plan.name}</span>
+                <span className="font-bold">
+                  {plusStatusText(s.status, s.ends_at)}
+                  {active && left !== null && left <= 7 && <span className="text-burgundy"> · {expiryText(left)}</span>}
+                </span>
+                <span>Último pago {s.amount_paid ? formatCOP(s.amount_paid) : "—"} · Ref. convenio {s.last_payment_reference ?? "—"}</span>
+                {s.renewals.length > 0 && (
+                  <details>
+                    <summary className="cursor-pointer font-bold">Historial ({s.renewals.length})</summary>
+                    <ul className="mt-1">
+                      {s.renewals.map((r) => <li key={r.created_at}>{formatDate(r.period_start)} → {formatDate(r.period_end)} · {formatCOP(r.amount)}</li>)}
+                    </ul>
+                  </details>
+                )}
+                {s.status !== "cancelled" && s.status !== "pending_payment" && cancelling !== s.id && (
+                  <Button className="self-start" onClick={() => startCancel(s.id)}>Cancelar membresía</Button>
+                )}
+                {cancelling === s.id && (
+                  <div className="flex flex-col gap-2 rounded-2xl bg-cream p-3" role="group" aria-label="Confirmar cancelación">
+                    <Field label="Motivo de la cancelación" id={`cancel-${s.id}`} value={reason} onChange={(e) => setReason(e.target.value)} />
+                    <div className="flex gap-2">
+                      <Button variant="dark" onClick={() => void confirmCancel(s.id)}>Sí, cancelar membresía</Button>
+                      <Button onClick={() => setCancelling(null)}>Volver</Button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
       <ManualMembership plans={plans.data} onChanged={() => void subs.reload()} />
 
       <section className="flex flex-col gap-4">
-        <h3 className="text-2xl">Planes</h3>
-        {plans.loading && <Spinner />}
-        <div className="grid gap-4 lg:grid-cols-2">
-          {plans.data?.map((p) => <PlanEditor key={p.id} plan={p} run={run} />)}
-          <NewPlanForm run={run} />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4">
         <h3 className="text-2xl">Solicitudes pendientes</h3>
-        <p className="muted text-sm">Registra el precio y la vigencia acordados desde la bandeja de Pagos, y confirma allí el pago cuando lo verifiques.</p>
+        <p className="muted text-sm">Cuando confirmes el pago en Pagos, la solicitud sale de aquí y la membresía aparece arriba como activa.</p>
         {requests.data?.length === 0 && <p className="muted">No hay solicitudes pendientes.</p>}
         <ul className="flex flex-col gap-2">
           {requests.data?.map((r) => (
@@ -65,30 +165,12 @@ export function MembershipsAdmin() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h3 className="text-2xl">Membresías</h3>
-        {subs.loading && <Spinner />}
-        <ul className="flex flex-col gap-2">
-          {subs.data?.map((s) => (
-            <li key={s.id} className="card flex flex-col gap-2 p-4 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-bold">{s.customer_name ?? "—"} · {s.customer_email}</span>
-                <Badge tone={s.status === "active" ? "burgundy" : "gray"}>{subscriptionStatusLabel[s.status]}</Badge>
-              </div>
-              <span>{s.plan.name} · {formatDate(s.starts_at)} → {formatDate(s.ends_at)} · Último pago {s.amount_paid ? formatCOP(s.amount_paid) : "—"} ({s.last_payment_reference ?? "—"})</span>
-              {s.renewals.length > 0 && (
-                <details>
-                  <summary className="cursor-pointer font-bold">Historial ({s.renewals.length})</summary>
-                  <ul className="mt-1">
-                    {s.renewals.map((r) => <li key={r.created_at}>{formatDate(r.period_start)} → {formatDate(r.period_end)} · {formatCOP(r.amount)}</li>)}
-                  </ul>
-                </details>
-              )}
-              {s.status !== "cancelled" && s.status !== "pending_payment" && (
-                <Button className="self-start" onClick={() => cancel(s.id)}>Cancelar membresía</Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <h3 className="text-2xl">Planes</h3>
+        {plans.loading && <Spinner />}
+        <div className="grid gap-4 lg:grid-cols-2">
+          {plans.data?.map((p) => <PlanEditor key={p.id} plan={p} run={run} />)}
+          <NewPlanForm run={run} />
+        </div>
       </section>
     </div>
   );

@@ -99,6 +99,7 @@ class AdminSubscriptionOut(SubscriptionOut):
     user_id: uuid.UUID
     customer_email: str | None
     customer_name: str | None
+    customer_phone: str | None = None
 
 
 class AgreedTerms(InputModel):
