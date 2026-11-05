@@ -119,6 +119,9 @@ export interface Plan {
   benefits: string[];
   is_active: boolean;
   hide_price?: boolean;
+  deleted_at?: string | null;
+  usage?: { live: Record<string, number>; historical: Record<string, number> };
+  in_use?: boolean;
 }
 
 export interface SubscriptionRequest {

@@ -83,6 +83,9 @@ def create_request(db: Session, user: Profile, plan_code: str) -> tuple[Subscrip
     generar referencias duplicadas cuando la persona pulsa el botón varias veces.
     """
     plan = db.scalars(select(Plan).where(Plan.code == plan_code, Plan.is_active.is_(True))).one_or_none()
+    gone = db.scalars(select(Plan).where(Plan.code == plan_code, Plan.deleted_at.is_not(None))).first()
+    if gone is not None and plan is None:
+        raise conflict("PLAN_UNAVAILABLE", "Este plan ya no está disponible. Elige otro plan de S2 Box.")
     if plan is None:
         raise not_found("El plan seleccionado no existe o no está disponible.")
 

@@ -1,3 +1,4 @@
+import type { Usage } from "../../components/admin/usage";
 import { apiFetch } from "../../services/api";
 import type { RoutineDetail } from "../routines/api";
 import type { AdminMembership, AdminProfile, Category, ContentKind, Order, PaymentMethod, PaymentStatus, Plan, Subscription, SubscriptionRequest } from "../../services/types";
@@ -44,6 +45,9 @@ export interface AdminVariant {
   price_override: number | null;
   stock_on_hand: number;
   stock_reserved: number;
+  deleted_at?: string | null;
+  usage?: Usage;
+  in_use?: boolean;
 }
 
 export interface AdminProduct {
@@ -56,6 +60,9 @@ export interface AdminProduct {
   image_url: string | null;
   is_active: boolean;
   is_demo: boolean;
+  deleted_at?: string | null;
+  usage?: Usage;
+  in_use?: boolean;
   variants: AdminVariant[];
 }
 
@@ -199,7 +206,8 @@ export const adminApi = {
   archiveCategory: (id: number) => post<Category>(`/categories/${id}/archive`),
   restoreCategory: (id: number) => post<Category>(`/categories/${id}/restore`),
   deleteCategory: (id: number) => apiFetch<void>(`${A}/categories/${id}`, { method: "DELETE" }),
-  products: (includeArchived = false) => apiFetch<AdminProduct[]>(`${A}/products`, { query: { include_archived: includeArchived ? "true" : undefined } }),
+  products: (includeArchived = false, includeDeleted = false) =>
+    apiFetch<AdminProduct[]>(`${A}/products`, { query: { include_archived: includeArchived ? "true" : undefined, include_deleted: includeDeleted ? "true" : undefined } }),
   archiveProduct: (id: number) => post<AdminProduct>(`/products/${id}/archive`),
   restoreProduct: (id: number) => post<AdminProduct>(`/products/${id}/restore`),
   deleteProduct: (id: number) => apiFetch<void>(`${A}/products/${id}`, { method: "DELETE" }),
@@ -226,7 +234,8 @@ export const adminApi = {
   updateSettings: (whatsapp_number: string | null) =>
     apiFetch<AdminSettings>(`${A}/settings`, { method: "PUT", body: { whatsapp_number } }),
 
-  plans: (includeArchived = false) => apiFetch<Plan[]>(`${A}/plans`, { query: { include_archived: includeArchived ? "true" : undefined } }),
+  plans: (includeArchived = false, includeDeleted = false) =>
+    apiFetch<Plan[]>(`${A}/plans`, { query: { include_archived: includeArchived ? "true" : undefined, include_deleted: includeDeleted ? "true" : undefined } }),
   archivePlan: (id: number) => post<Plan>(`/plans/${id}/archive`),
   restorePlan: (id: number) => post<Plan>(`/plans/${id}/restore`),
   deletePlan: (id: number) => apiFetch<void>(`${A}/plans/${id}`, { method: "DELETE" }),

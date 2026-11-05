@@ -45,6 +45,8 @@ class Product(TimestampMixin, Base):
     base_price: Mapped[int] = mapped_column(Integer)
     image_url: Mapped[str | None] = mapped_column(String(500))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Eliminación lógica: tiene pedidos, así que se oculta en vez de borrarse.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Marca los datos de demostración para distinguirlos del catálogo real.
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
@@ -80,6 +82,7 @@ class ProductVariant(TimestampMixin, Base):
     stock_on_hand: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     stock_reserved: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     product: Mapped[Product] = relationship(back_populates="variants")
 

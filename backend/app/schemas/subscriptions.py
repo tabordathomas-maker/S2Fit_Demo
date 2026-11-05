@@ -19,6 +19,14 @@ class PlanOut(ORMModel):
     hide_price: bool = False
 
 
+class AdminPlanOut(PlanOut):
+    """Plan para el panel: incluye si está eliminado y su uso (vigente e histórico)."""
+
+    deleted_at: datetime | None = None
+    usage: dict | None = None
+    in_use: bool = False
+
+
 class PlanCreate(InputModel):
     code: str = Field(pattern=r"^[a-z0-9-]{2,40}$")
     name: str = Field(min_length=2, max_length=80)

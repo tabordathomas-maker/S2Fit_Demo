@@ -41,6 +41,8 @@ class Plan(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # Con true, la API pública devuelve price = null (precio por confirmar); el panel sí lo ve.
     hide_price: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Eliminación lógica: tiene historial, así que se oculta en vez de borrarse.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 

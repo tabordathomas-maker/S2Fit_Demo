@@ -4,6 +4,7 @@ import { FileUploadButton, IMAGE_ACCEPT, IMAGE_HINT } from "../../components/Fil
 import { DeleteDialog } from "../../components/admin/DeleteDialog";
 import { diffPatch } from "../../components/admin/patch";
 import { RowActions } from "../../components/admin/RowActions";
+import type { Usage } from "../../components/admin/usage";
 import { ShowArchivedToggle } from "../../components/admin/ShowArchivedToggle";
 import { Alert, Badge, Button, Field, Select, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
@@ -23,13 +24,15 @@ interface DeleteTarget {
   kind: "product" | "variant" | "category";
   id: number;
   name: string;
+  usage?: Usage;
 }
 
 const DELETE_NOUN = { product: "producto", variant: "variante", category: "categoría" } as const;
 
 export function CatalogAdmin() {
   const [showArchived, setShowArchived] = useState(false);
-  const products = useAsync(() => adminApi.products(showArchived), [showArchived]);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const products = useAsync(() => adminApi.products(showArchived, showDeleted), [showArchived, showDeleted]);
   const categories = useAsync(() => adminApi.categories(showArchived), [showArchived]);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null);
@@ -63,7 +66,10 @@ export function CatalogAdmin() {
         <NewCategoryForm onCreate={(body) => run(() => adminApi.createCategory(body), "Categoría creada.")} />
         <NewProductForm categories={categories.data ?? []} run={run} />
       </div>
-      <ShowArchivedToggle checked={showArchived} onChange={setShowArchived} />
+      <div className="flex flex-wrap gap-x-6">
+        <ShowArchivedToggle checked={showArchived} onChange={setShowArchived} />
+        <ShowArchivedToggle checked={showDeleted} onChange={setShowDeleted} label="Mostrar eliminados" />
+      </div>
       <section aria-label="Categorías" className="flex flex-col gap-3">
         <h3 className="text-xl">Categorías</h3>
         <ul className="flex flex-col gap-2">
@@ -80,6 +86,7 @@ export function CatalogAdmin() {
         noun={deleting ? DELETE_NOUN[deleting.kind] : ""}
         remove={remove}
         archive={archiveInstead}
+        usage={deleting?.usage}
         onClose={() => setDeleting(null)}
         onDone={(outcome) => {
           setMessage({ tone: "success", text: outcome === "deleted" ? `«${deleting?.name}» eliminado.` : `«${deleting?.name}» archivado.` });
@@ -256,7 +263,7 @@ function ProductEditor({ product, categories, run, ask }: { product: AdminProduc
         </div>
         <div className="flex flex-wrap gap-2">
           {product.is_demo && <Badge tone="gray">Demo</Badge>}
-          <Badge tone={product.is_active ? "green" : "gray"}>{product.is_active ? "Activo" : "Archivado"}</Badge>
+          <Badge tone={product.is_active ? "green" : "gray"}>{product.deleted_at ? "Eliminado" : product.is_active ? "Activo" : "Archivado"}</Badge>
         </div>
         <RowActions
           name={product.name}
@@ -264,7 +271,7 @@ function ProductEditor({ product, categories, run, ask }: { product: AdminProduc
           onEdit={() => setOpen((v) => !v)}
           onArchive={() => void run(() => adminApi.archiveProduct(product.id), "Producto archivado: ya no se ve en la tienda.")}
           onRestore={() => void run(() => adminApi.restoreProduct(product.id), "Producto restaurado.")}
-          onDelete={() => ask({ kind: "product", id: product.id, name: product.name })}
+          onDelete={() => ask({ kind: "product", id: product.id, name: product.name, usage: product.usage })}
         />
       </div>
       {open && (
@@ -352,7 +359,7 @@ function VariantRow({ variant: v, run, ask }: { variant: AdminVariant; run: Run;
         onEdit={() => setEditing((x) => !x)}
         onArchive={() => void run(() => adminApi.archiveVariant(v.id), "Variante archivada.")}
         onRestore={() => void run(() => adminApi.restoreVariant(v.id), "Variante restaurada.")}
-        onDelete={() => ask({ kind: "variant", id: v.id, name: v.sku })}
+        onDelete={() => ask({ kind: "variant", id: v.id, name: v.sku, usage: v.usage })}
       />
       {editing && (
         <form onSubmit={saveEdit} aria-label={`Editar variante ${v.sku}`} className="grid gap-2 sm:grid-cols-4 sm:items-end">

@@ -45,7 +45,8 @@ function expiryText(left: number): string {
 
 export function MembershipsAdmin() {
   const [showArchived, setShowArchived] = useState(false);
-  const plans = useAsync(() => adminApi.plans(showArchived), [showArchived]);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const plans = useAsync(() => adminApi.plans(showArchived, showDeleted), [showArchived, showDeleted]);
   const requests = useAsync(() => adminApi.subscriptionRequests("pending_payment"), []);
   const subs = useAsync(() => adminApi.subscriptions(), []);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export function MembershipsAdmin() {
   const [notice, setNotice] = useState<string | null>(null);
   const [editingSub, setEditingSub] = useState<string | null>(null);
   const [editingReq, setEditingReq] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<{ kind: "plan" | "request"; id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState<{ kind: "plan" | "request"; id: string; name: string; usage?: Plan["usage"] } | null>(null);
 
   const reloadAll = () => Promise.all([plans.reload(), requests.reload(), subs.reload()]);
 
@@ -213,6 +214,7 @@ export function MembershipsAdmin() {
         noun={deleting?.kind === "plan" ? "plan" : "solicitud"}
         remove={() => (deleting!.kind === "plan" ? adminApi.deletePlan(Number(deleting!.id)) : adminApi.deleteSubscriptionRequest(deleting!.id))}
         archive={deleting?.kind === "plan" ? () => adminApi.archivePlan(Number(deleting.id)) : undefined}
+        usage={deleting?.kind === "plan" ? deleting.usage : undefined}
         onClose={() => setDeleting(null)}
         onDone={(outcome) => {
           setNotice(outcome === "deleted" ? `«${deleting?.name}» eliminado.` : `«${deleting?.name}» archivado.`);
@@ -223,10 +225,13 @@ export function MembershipsAdmin() {
 
       <section className="flex flex-col gap-4">
         <h3 className="text-2xl">Planes</h3>
-        <ShowArchivedToggle checked={showArchived} onChange={setShowArchived} />
+        <div className="flex flex-wrap gap-x-6">
+          <ShowArchivedToggle checked={showArchived} onChange={setShowArchived} />
+          <ShowArchivedToggle checked={showDeleted} onChange={setShowDeleted} label="Mostrar eliminados" />
+        </div>
         {plans.loading && <Spinner />}
         <div className="grid gap-4 lg:grid-cols-2">
-          {plans.data?.map((p) => <PlanEditor key={p.id} plan={p} run={run} onDelete={() => setDeleting({ kind: "plan", id: String(p.id), name: p.name })} />)}
+          {plans.data?.map((p) => <PlanEditor key={p.id} plan={p} run={run} onDelete={() => setDeleting({ kind: "plan", id: String(p.id), name: p.name, usage: p.usage })} />)}
           <NewPlanForm run={run} />
         </div>
       </section>
@@ -276,7 +281,7 @@ function PlanEditor({ plan, run, onDelete }: { plan: Plan; run: (fn: () => Promi
     <form onSubmit={save} className="card flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-sm">{plan.code}</span>
-        <Badge tone={plan.is_active ? "green" : "gray"}>{plan.is_active ? "Activo" : "Archivado"}</Badge>
+        <Badge tone={plan.is_active ? "green" : "gray"}>{plan.deleted_at ? "Eliminado" : plan.is_active ? "Activo" : "Archivado"}</Badge>
       </div>
       <Field label="Nombre" id={`pn-${plan.id}`} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       <Field label="Precio (COP)" id={`pp-${plan.id}`} type="number" min={1} value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })}

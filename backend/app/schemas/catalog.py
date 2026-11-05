@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import Field
 
 from app.schemas.common import InputModel, ORMModel
@@ -49,6 +51,9 @@ class AdminVariantOut(VariantOut):
     price_override: int | None
     stock_on_hand: int
     stock_reserved: int
+    deleted_at: datetime | None = None
+    usage: dict | None = None
+    in_use: bool = False
 
 
 class AdminProductOut(ORMModel):
@@ -61,6 +66,9 @@ class AdminProductOut(ORMModel):
     image_url: str | None
     is_active: bool
     is_demo: bool
+    deleted_at: datetime | None = None
+    usage: dict | None = None
+    in_use: bool = False
     variants: list[AdminVariantOut]
 
 

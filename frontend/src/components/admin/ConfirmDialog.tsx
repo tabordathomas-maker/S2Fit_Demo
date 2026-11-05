@@ -64,16 +64,16 @@ export function ConfirmDialog({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
-      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId} className="card flex w-full max-w-md flex-col gap-4 bg-white p-6">
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId} className="card flex w-[calc(100%-2rem)] max-w-md flex-col gap-4 bg-white p-6">
         <h2 id={titleId} className="text-2xl">{title}</h2>
         <div id={messageId} className="text-ink">{message}</div>
-        <div className="flex flex-wrap justify-end gap-2">
-          <button ref={cancelRef} type="button" className="inline-flex min-h-11 items-center rounded-full border-2 border-ink px-6 py-2.5 font-bold hover:bg-ink hover:text-cream" onClick={onCancel}>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+          <button ref={cancelRef} type="button" className="inline-flex min-h-11 w-full items-center justify-center rounded-full border-2 border-ink px-6 py-2.5 font-bold hover:bg-ink hover:text-cream sm:w-auto" onClick={onCancel}>
             {cancelLabel}
           </button>
           {extra}
           {!hideConfirm && (
-            <Button variant="dark" disabled={busy} onClick={onConfirm}>{confirmLabel}</Button>
+            <Button variant="dark" className="w-full sm:w-auto" disabled={busy} onClick={onConfirm}>{confirmLabel}</Button>
           )}
         </div>
       </div>

@@ -83,7 +83,7 @@ describe("CatalogAdmin · editar, archivar y eliminar", () => {
 
     await userEvent.click(screen.getByRole("switch", { name: "Mostrar archivados" }));
     await waitFor(() => expect(screen.queryByText("Gorra vieja")).not.toBeInTheDocument());
-    expect(list).toHaveBeenCalledWith(true);
+    expect(list).toHaveBeenCalledWith(true, false);
   });
 
   it("edita una categoría enviando solo el campo cambiado", async () => {

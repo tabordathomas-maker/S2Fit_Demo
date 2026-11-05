@@ -79,7 +79,7 @@ def test_delete_plan_without_references_is_real_and_with_requests_is_409(client,
     # Assert
     error = blocked.json()["error"]
     assert blocked.status_code == 409 and error["code"] == "RESOURCE_IN_USE"
-    assert error["details"]["requests"] == 1 and "archivarlo" in error["message"]
+    assert error["details"]["live"] == {"subscriptions_pending": 1, "requests_pending": 1} and "archivarlo" in error["message"]
     assert deleted.status_code == 204
     db.expire_all()
     assert db.get(Plan, free_id) is None

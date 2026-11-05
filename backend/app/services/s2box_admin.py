@@ -3,14 +3,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core import clock
 from app.core.errors import AppError, conflict, not_found
 from app.models import Payment, Plan, Profile, Subscription, SubscriptionRenewal, SubscriptionRequest
 from app.models.enums import PaymentStatus, SubscriptionRequestStatus, SubscriptionStatus
 from app.schemas.subscriptions import PlanUpdate, SubscriptionRequestUpdate, SubscriptionUpdate
 from app.services import archive, audit, subscriptions
+from app.services.usage import plan_usage
 
 
 def get_plan(db: Session, plan_id: int) -> Plan:
@@ -29,18 +31,43 @@ def update_plan(db: Session, admin: Profile, plan_id: int, data: PlanUpdate) -> 
     return plan
 
 
-def delete_plan(db: Session, admin: Profile, plan_id: int) -> None:
+def _plural_es(count: int, singular: str, plural_form: str) -> str:
+    return f"{count} {singular if count == 1 else plural_form}"
+
+
+def _join(parts: list[str]) -> str:
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " y " + parts[-1]
+
+
+def _plan_live_message(db: Session, plan_id: int, live: dict[str, int], now: datetime) -> str:
+    parts: list[str] = []
+    if live.get("subscriptions_active"):
+        n = live["subscriptions_active"]
+        ends = list(db.scalars(
+            select(Subscription.ends_at).where(Subscription.plan_id == plan_id, Subscription.status == SubscriptionStatus.active,
+                                               Subscription.ends_at > now).order_by(Subscription.ends_at)
+        ))
+        text = _plural_es(n, "suscripción activa", "suscripciones activas")
+        if 0 < len(ends) <= 3:
+            dates = _join([archive.short_date(e) for e in ends])
+            text += f" (vence el {dates})" if n == 1 else f" (vencen el {dates})"
+        parts.append(text)
+    if live.get("subscriptions_pending"):
+        parts.append(_plural_es(live["subscriptions_pending"], "suscripción esperando pago", "suscripciones esperando pago"))
+    if live.get("requests_pending"):
+        parts.append(_plural_es(live["requests_pending"], "solicitud esperando pago", "solicitudes esperando pago"))
+    return f"Este plan tiene {_join(parts)}. Puedes archivarlo para que deje de ofrecerse."
+
+
+def delete_plan(db: Session, admin: Profile, plan_id: int) -> str:
     plan = get_plan(db, plan_id)
-    requests = db.scalar(select(func.count(SubscriptionRequest.id)).where(SubscriptionRequest.plan_id == plan.id)) or 0
-    subs = db.scalar(select(func.count(Subscription.id)).where(Subscription.plan_id == plan.id)) or 0
-    renewals = db.scalar(select(func.count(SubscriptionRenewal.id)).where(SubscriptionRenewal.plan_id == plan.id)) or 0
-    archive.block_if_referenced(
-        f"Este plan tiene {archive.plural(requests, 'solicitud', 'solicitudes')} y "
-        f"{archive.plural(subs, 'suscripción', 'suscripciones')}. Puedes archivarlo para que deje de ofrecerse en S2 Box.",
-        {"requests": requests, "subscriptions": subs, "renewals": renewals},
+    now = clock.now()
+    subscriptions.expire_overdue(db, now)
+    usage = plan_usage(db, [plan.id], now)[plan.id]
+    return archive.delete_or_soft_delete(
+        db, admin, plan, "plan", plan.id, "plan", usage["live"], usage["historical"],
+        _plan_live_message(db, plan.id, usage["live"], now) if usage["live"] else "",
     )
-    audit.record(db, admin, "plan.delete", "plan", plan.id, {"code": plan.code, "name": plan.name})
-    db.delete(plan)
 
 
 def _payment_of(db: Session, request_id: uuid.UUID) -> Payment | None:

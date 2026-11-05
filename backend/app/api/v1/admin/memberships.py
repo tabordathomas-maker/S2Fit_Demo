@@ -13,6 +13,7 @@ from app.core.errors import not_found
 from app.models import Plan, Profile, Subscription, SubscriptionRequest
 from app.models.enums import SubscriptionRequestStatus, SubscriptionStatus
 from app.schemas.subscriptions import (
+    AdminPlanOut,
     AdminSubscriptionOut,
     AdminSubscriptionRequestOut,
     AgreedTerms,
@@ -29,6 +30,7 @@ from app.schemas.subscriptions import (
     SubscriptionUpdate,
 )
 from app.services import archive, audit, s2box_admin, subscriptions
+from app.services.usage import plan_usage
 
 router = APIRouter(tags=["admin: S2 Box"])
 
@@ -57,12 +59,16 @@ def _present_subscription(s: Subscription) -> dict:
 # --- Planes ---
 
 
-@router.get("/plans", response_model=list[PlanOut])
-def list_plans(_: AdminUser, db: DbSession, include_archived: bool = False):
+@router.get("/plans", response_model=list[AdminPlanOut])
+def list_plans(_: AdminUser, db: DbSession, include_archived: bool = False, include_deleted: bool = False):
     stmt = select(Plan).order_by(Plan.sort_order, Plan.id)
-    if not include_archived:
-        stmt = stmt.where(Plan.is_active.is_(True))
-    return db.scalars(stmt).all()
+    if not include_deleted:
+        stmt = stmt.where(Plan.deleted_at.is_(None))
+        if not include_archived:
+            stmt = stmt.where(Plan.is_active.is_(True))
+    plans = list(db.scalars(stmt).all())
+    usage = plan_usage(db, [p.id for p in plans], clock.now()) if plans else {}
+    return [{**AdminPlanOut.model_validate(p).model_dump(), "usage": usage[p.id], "in_use": bool(usage[p.id]["live"])} for p in plans]
 
 
 @router.post("/plans", response_model=PlanOut, status_code=status.HTTP_201_CREATED)

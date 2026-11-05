@@ -21,7 +21,7 @@ def _size_key(size: str) -> tuple[int, str]:
 
 
 def _active_variants(product: Product) -> list[ProductVariant]:
-    return [v for v in product.variants if v.is_active]
+    return [v for v in product.variants if v.is_active and v.deleted_at is None]
 
 
 def summarize(product: Product) -> dict:
@@ -50,7 +50,7 @@ def _public_products():
     return (
         select(Product)
         .join(Product.category)
-        .where(Product.is_active.is_(True), Category.is_active.is_(True))
+        .where(Product.is_active.is_(True), Product.deleted_at.is_(None), Category.is_active.is_(True))
         .options(selectinload(Product.variants), selectinload(Product.category))
     )
 
@@ -66,7 +66,7 @@ def list_products(db: Session, q: str | None, category: str | None, size: str | 
         stmt = stmt.where(or_(Product.name.ilike(pattern), Product.description.ilike(pattern)))
     if category:
         stmt = stmt.where(Category.slug == category)
-    variant_filters = [ProductVariant.product_id == Product.id, ProductVariant.is_active.is_(True)]
+    variant_filters = [ProductVariant.product_id == Product.id, ProductVariant.is_active.is_(True), ProductVariant.deleted_at.is_(None)]
     if size:
         folded = func.translate(func.lower(ProductVariant.size), "áéíóúü", "aeiouu")
         variant_filters.append(folded == _fold(size))

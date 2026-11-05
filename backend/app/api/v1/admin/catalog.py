@@ -25,6 +25,7 @@ router = APIRouter(tags=["admin: catálogo"])
 
 
 IncludeArchived = Annotated[bool, Query(description="Incluye lo archivado (por defecto solo lo activo).")]
+IncludeDeleted = Annotated[bool, Query(description="Incluye lo eliminado (eliminación lógica).")]
 
 
 def _product(db: DbSession, product_id: int) -> Product:
@@ -86,11 +87,13 @@ def delete_category(category_id: int, admin: AdminUser, db: DbSession):
 
 
 @router.get("/products", response_model=list[AdminProductOut])
-def list_products(_: AdminUser, db: DbSession, include_archived: IncludeArchived = False):
+def list_products(_: AdminUser, db: DbSession, include_archived: IncludeArchived = False, include_deleted: IncludeDeleted = False):
     stmt = select(Product).options(selectinload(Product.variants)).order_by(Product.id)
-    if not include_archived:
-        stmt = stmt.where(Product.is_active.is_(True))
-    return db.scalars(stmt).all()
+    if not include_deleted:
+        stmt = stmt.where(Product.deleted_at.is_(None))
+        if not include_archived:
+            stmt = stmt.where(Product.is_active.is_(True))
+    return catalog_admin.present_products(db, list(db.scalars(stmt).all()), include_deleted)
 
 
 @router.post("/products", response_model=AdminProductOut, status_code=status.HTTP_201_CREATED)

@@ -72,8 +72,8 @@ def test_delete_product_in_orders_returns_resource_in_use_with_counts(client, db
     assert response.status_code == 409
     error = response.json()["error"]
     assert error["code"] == "RESOURCE_IN_USE"
-    assert error["message"] == "Este producto aparece en 3 pedidos. Puedes archivarlo para ocultarlo de la tienda."
-    assert error["details"] == {"orders": 3}
+    assert error["message"] == "Este producto tiene 3 pedidos esperando pago con unidades reservadas. Puedes archivarlo para ocultarlo de la tienda."
+    assert error["details"] == {"live": {"orders_pending": 3}, "historical": {}}
     assert db.get(Product, variant.product.id) is not None
 
 
@@ -155,7 +155,7 @@ def test_variant_delete_archive_and_stock_floor(client, db):
 
     # Assert
     assert in_use.status_code == 409 and in_use.json()["error"]["code"] == "RESOURCE_IN_USE"
-    assert in_use.json()["error"]["details"] == {"orders": 1}
+    assert in_use.json()["error"]["details"] == {"live": {"orders_pending": 1}, "historical": {}}
     assert below.status_code == 409 and "3 unidades" in below.json()["error"]["message"]
     assert archived.json()["is_active"] is False
     assert removed.status_code == 204
