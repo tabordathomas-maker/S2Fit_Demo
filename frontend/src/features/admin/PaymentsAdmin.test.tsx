@@ -10,7 +10,7 @@ const payment: AdminPayment = {
   id: "p1", kind: "subscription", status: "pending", amount: 60000, method: null, operation_reference: "S2P-0001",
   created_at: "2026-11-03T15:00:00Z", decided_at: null, user_id: "u1", customer_email: "laura@example.com",
   customer_name: "Laura Gómez", customer_phone: "3001234567", order_id: null, subscription_request_id: "r1",
-  plan_name: "S2 Plus mensual", subscription_ends_at: null, external_reference: null, admin_notes: null,
+  plan_name: "S2 Box mensual", subscription_ends_at: null, external_reference: null, admin_notes: null,
   decided_by: null, decided_by_email: null, reservation_expires_at: null, reservation_status: null,
 };
 
@@ -22,18 +22,18 @@ async function fillAndConfirm() {
   await userEvent.click(screen.getAllByRole("button", { name: "Confirmar pago" })[1]);
 }
 
-describe("PaymentsAdmin · pagos de S2 Plus", () => {
+describe("PaymentsAdmin · pagos de S2 Box", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("tras confirmar muestra el mensaje con la fecha y el enlace a S2 Plus", async () => {
+  it("tras confirmar muestra el mensaje con la fecha y el enlace a S2 Box", async () => {
     vi.spyOn(adminApi, "payments").mockResolvedValueOnce([payment]).mockResolvedValue([]);
     vi.spyOn(adminApi, "confirmPayment").mockResolvedValue({ ...payment, status: "confirmed", subscription_ends_at: "2026-12-03T15:00:00Z" });
     renderWithProviders(<PaymentsAdmin />);
 
     await fillAndConfirm();
 
-    expect(await screen.findByText("Pago confirmado. S2 Plus de Laura Gómez activa hasta 3 dic 2026.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ver en S2 Plus" })).toHaveAttribute("href", "/admin?tab=plus");
+    expect(await screen.findByText("Pago confirmado. S2 Box de Laura Gómez activa hasta 3 dic 2026.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver en S2 Box" })).toHaveAttribute("href", "/admin?tab=s2box");
   });
 
   it("un error al confirmar se ve dentro de la tarjeta del pago", async () => {

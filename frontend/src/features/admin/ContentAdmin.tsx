@@ -49,7 +49,7 @@ export function ContentAdmin() {
           {challenges.data?.map((c) => (
             <li key={c.id} className="card flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
               <span className="font-bold">{c.title}</span>
-              <span>{c.target_count} días · {c.access === "plus" ? "S2 Plus" : "Gratis"}{c.is_demo ? " · demo" : ""}</span>
+              <span>{c.target_count} días{c.is_demo ? " · demo" : ""}</span>
               <Button onClick={() => void run(() => adminApi.updateChallenge(c.id, { is_active: !c.is_active }))}>
                 {c.is_active ? "Desactivar" : "Activar"}
               </Button>
@@ -65,7 +65,7 @@ export function ContentAdmin() {
           {rewards.data?.map((r) => (
             <li key={r.id} className="card flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
               <span className="font-bold">{r.name}</span>
-              <span>{r.kind === "habit_discount" ? "Hábitos" : "Retos"} · desde {r.threshold_pct}% · {r.access === "plus" ? "S2 Plus" : "Gratis"}</span>
+              <span>{r.kind === "habit_discount" ? "Hábitos" : "Retos"} · desde {r.threshold_pct}%</span>
               <Button onClick={() => void run(() => adminApi.updateReward(r.id, { is_active: !r.is_active }))}>
                 {r.is_active ? "Desactivar" : "Activar"}
               </Button>
@@ -97,7 +97,7 @@ export function ContentAdmin() {
   );
 }
 
-const EMPTY = { kind: "routine", title: "", meta: "", summary: "", body: "", media_url: "", cover_url: "", access: "free", meal_slot: "" };
+const EMPTY = { kind: "routine", title: "", meta: "", summary: "", body: "", media_url: "", cover_url: "", meal_slot: "" };
 
 function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
   initial?: AdminContent; onSave: (body: Record<string, unknown>) => Promise<boolean>; submitLabel?: string;
@@ -105,14 +105,14 @@ function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
   const [form, setForm] = useState(
     initial
       ? { kind: initial.kind, title: initial.title, meta: initial.meta ?? "", summary: initial.summary ?? "", body: initial.body ?? "",
-          media_url: initial.media_url ?? "", cover_url: initial.cover_url ?? "", access: initial.access, meal_slot: initial.meal_slot ?? "" }
+          media_url: initial.media_url ?? "", cover_url: initial.cover_url ?? "", meal_slot: initial.meal_slot ?? "" }
       : EMPTY,
   );
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const body: Record<string, unknown> = {
       title: form.title, meta: form.meta || null, summary: form.summary || null, body: form.body || null,
-      media_url: form.media_url || null, cover_url: form.cover_url || null, access: form.access, meal_slot: form.meal_slot || null,
+      media_url: form.media_url || null, cover_url: form.cover_url || null, meal_slot: form.meal_slot || null,
     };
     if (!initial) body.kind = form.kind;
     if ((await onSave(body)) && !initial) setForm(EMPTY);
@@ -125,10 +125,6 @@ function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
           {Object.entries(KIND_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </Select>
       )}
-      <Select label="Acceso" id={`${id}-access`} value={form.access} onChange={(e) => setForm({ ...form, access: e.target.value as "free" | "plus" })}>
-        <option value="free">Gratis (Mi Ruta)</option>
-        <option value="plus">Solo S2 Plus</option>
-      </Select>
       <Field label="Título" id={`${id}-title`} required minLength={2} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <Field label="Detalle corto" id={`${id}-meta`} placeholder="Video · 20 min" value={form.meta} onChange={(e) => setForm({ ...form, meta: e.target.value })} />
       <div className="flex flex-col gap-3 rounded-2xl bg-cream p-4 sm:col-span-2">
@@ -170,7 +166,7 @@ function ContentRow({ item, run }: { item: AdminContent; run: (fn: () => Promise
   return (
     <li className="flex flex-col gap-2 rounded-2xl bg-white p-4 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span><strong>{item.title}</strong> · {KIND_LABEL[item.kind]} · {item.access === "plus" ? "S2 Plus" : "Gratis"}{item.is_demo ? " · demo" : ""}</span>
+        <span><strong>{item.title}</strong> · {KIND_LABEL[item.kind]}{item.is_demo ? " · demo" : ""}</span>
         <div className="flex gap-2">
           <Badge tone={item.is_published ? "green" : "gray"}>{item.is_published ? "Publicado" : "Oculto"}</Badge>
           <Button onClick={() => setEditing((v) => !v)}>{editing ? "Cerrar" : "Editar"}</Button>
@@ -185,19 +181,16 @@ function ContentRow({ item, run }: { item: AdminContent; run: (fn: () => Promise
 }
 
 function NewChallengeForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<boolean> }) {
-  const [form, setForm] = useState({ title: "", description: "", target_count: "7", access: "plus" });
+  const [form, setForm] = useState({ title: "", description: "", target_count: "7" });
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const ok = await run(() => adminApi.createChallenge({ ...form, target_count: Number(form.target_count), description: form.description || null }));
-    if (ok) setForm({ title: "", description: "", target_count: "7", access: "plus" });
+    if (ok) setForm({ title: "", description: "", target_count: "7" });
   };
   return (
     <form onSubmit={submit} className="card grid gap-3 sm:grid-cols-4 sm:items-end">
       <Field label="Título" id="ch-title" required minLength={2} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <Field label="Días para completar" id="ch-target" type="number" min={1} value={form.target_count} onChange={(e) => setForm({ ...form, target_count: e.target.value })} />
-      <Select label="Acceso" id="ch-access" value={form.access} onChange={(e) => setForm({ ...form, access: e.target.value })}>
-        <option value="plus">S2 Plus</option><option value="free">Gratis</option>
-      </Select>
       <Button type="submit" variant="dark">Crear reto</Button>
       <div className="sm:col-span-4"><TextArea label="Descripción" id="ch-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
     </form>
@@ -205,11 +198,11 @@ function NewChallengeForm({ run }: { run: (fn: () => Promise<unknown>) => Promis
 }
 
 function NewRewardForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<boolean> }) {
-  const [form, setForm] = useState({ name: "", kind: "challenge", threshold_pct: "25", access: "plus" });
+  const [form, setForm] = useState({ name: "", kind: "challenge", threshold_pct: "25" });
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const ok = await run(() => adminApi.createReward({ ...form, threshold_pct: Number(form.threshold_pct) }));
-    if (ok) setForm({ name: "", kind: "challenge", threshold_pct: "25", access: "plus" });
+    if (ok) setForm({ name: "", kind: "challenge", threshold_pct: "25" });
   };
   return (
     <form onSubmit={submit} className="card grid gap-3 sm:grid-cols-5 sm:items-end">
@@ -218,9 +211,6 @@ function NewRewardForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<b
         <option value="challenge">Retos</option><option value="habit_discount">Hábitos</option>
       </Select>
       <Field label="Desde (%)" id="rw-pct" type="number" min={1} max={100} value={form.threshold_pct} onChange={(e) => setForm({ ...form, threshold_pct: e.target.value })} />
-      <Select label="Acceso" id="rw-access" value={form.access} onChange={(e) => setForm({ ...form, access: e.target.value })}>
-        <option value="plus">S2 Plus</option><option value="free">Gratis</option>
-      </Select>
       <Button type="submit" variant="dark">Crear recompensa</Button>
     </form>
   );

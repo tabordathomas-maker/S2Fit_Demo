@@ -1,7 +1,7 @@
 """Carga datos de DEMOSTRACIÓN (marcados con is_demo=True).
 
 Los precios vienen del prototipo y NO son precios comerciales definitivos. El plan
-S2 Plus se crea sin precio ("Consulta el precio por WhatsApp").
+S2 Box se crea sin precio ("Consulta el precio por WhatsApp").
 
 Uso:  python -m scripts.seed_demo            (desarrollo)
       python -m scripts.seed_demo --allow-production
@@ -40,7 +40,7 @@ DEMO_STOCK = 5
 
 PLAN = {
     "code": "plus-mensual",
-    "name": "S2 Plus mensual",
+    "name": "S2 Box mensual",
     "description": "Una comunidad más personalizada según tus necesidades y objetivos. Constancia que se recompensa de verdad.",
     "price": None,
     "duration_days": 30,

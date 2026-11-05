@@ -1,12 +1,11 @@
 import { useState, type FormEvent } from "react";
 
-import { Alert, Button, LinkButton, ProgressBar, Spinner, TextArea } from "../../components/ui";
+import { Alert, Button, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatDateTime } from "../../services/format";
 import { useAsync } from "../../services/useAsync";
 import { MediaPlayer } from "../content/ContentGrid";
-import { subscriptionsApi } from "../subscriptions/api";
-import { routinesApi, type RoutineDetail, type RoutineStep, type RoutineSummary, type StepState } from "./api";
+import { routinesApi, type RoutineDetail, type RoutineStep, type StepState } from "./api";
 import { RoutineStatsCard } from "./RoutineStatsCard";
 
 const STATE_LABEL: Record<StepState, string> = { done: "completado", current: "siguiente paso", locked: "bloqueado", available: "disponible" };
@@ -35,25 +34,8 @@ export function RoutinePanel() {
           </div>
         )}
       </div>
-      {current.locked ? <LockedRoutine routine={current} /> : <RoutineView key={current.id} id={current.id} onChange={() => void list.reload()} />}
+      <RoutineView key={current.id} id={current.id} onChange={() => void list.reload()} />
     </section>
-  );
-}
-
-function LockedRoutine({ routine }: { routine: RoutineSummary }) {
-  const membership = useAsync(() => subscriptionsApi.membership(), []);
-  const hadMembership = Boolean(membership.data?.subscription);
-  return (
-    <div className="flex flex-col items-start gap-3 rounded-2xl bg-cream p-5">
-      <p className="font-display text-xl"><span aria-hidden="true">🔒 </span>{routine.title}</p>
-      {routine.goal && <p className="muted">Objetivo: {routine.goal}</p>}
-      <div className="w-full max-w-md">
-        <ProgressBar percent={routine.progress_pct} label={`Avance de ${routine.title}`} />
-        <p className="mt-1 text-sm text-muted">{routine.progress_pct}% de avance</p>
-      </div>
-      <p className="font-bold">Tu rutina personalizada es parte de S2 Plus</p>
-      <LinkButton to="/plus" variant="dark">{hadMembership ? "Renovar S2 Plus" : "Conocer S2 Plus"}</LinkButton>
-    </div>
   );
 }
 

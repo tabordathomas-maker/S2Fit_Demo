@@ -14,7 +14,7 @@ const REASONS = ["Cortesía", "Prueba", "Pago en efectivo", "Pago por transferen
 
 type Pending = "grant" | "cancel" | null;
 
-/** Sección "Activar S2 Plus manualmente": el backend decide las fechas; aquí solo se anticipan para mostrarlas. */
+/** Sección "Activar S2 Box manualmente": el backend decide las fechas; aquí solo se anticipan para mostrarlas. */
 export function ManualMembership({ plans, onChanged }: { plans: Plan[] | undefined; onChanged: () => void }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -82,8 +82,8 @@ export function ManualMembership({ plans, onChanged }: { plans: Plan[] | undefin
           : await adminApi.cancelMembership(selected.id, reason.trim());
       setSuccess(
         pending === "grant"
-          ? `S2 Plus activa para ${firstName} hasta el ${formatShortDate(result.ends_at)}`
-          : `S2 Plus cancelada para ${firstName}`,
+          ? `S2 Box activa para ${firstName} hasta el ${formatShortDate(result.ends_at)}`
+          : `S2 Box cancelada para ${firstName}`,
       );
       setPending(null);
       setReason("");
@@ -98,8 +98,8 @@ export function ManualMembership({ plans, onChanged }: { plans: Plan[] | undefin
   };
 
   return (
-    <section className="card flex flex-col gap-4" aria-label="Activar S2 Plus manualmente">
-      <h3 className="text-2xl">Activar S2 Plus manualmente</h3>
+    <section className="card flex flex-col gap-4" aria-label="Activar S2 Box manualmente">
+      <h3 className="text-2xl">Activar S2 Box manualmente</h3>
 
       {noPlans ? (
         <Alert tone="info">Primero crea un plan en esta misma pestaña (sección Planes).</Alert>
@@ -168,20 +168,20 @@ export function ManualMembership({ plans, onChanged }: { plans: Plan[] | undefin
             <div className="flex flex-col gap-2 rounded-2xl bg-cream p-3" role="group" aria-label="Confirmación">
               <p className="text-sm">
                 {pending === "grant"
-                  ? `¿Confirmas ${isActive ? "extender" : "activar"} S2 Plus por ${days} días?`
-                  : "¿Confirmas cancelar S2 Plus ahora mismo? La persona pierde el acceso."}
+                  ? `¿Confirmas ${isActive ? "extender" : "activar"} S2 Box por ${days} días?`
+                  : "¿Confirmas cancelar S2 Box ahora mismo? La persona pierde el acceso."}
               </p>
               <div className="flex gap-2">
                 <Button variant="dark" disabled={busy} onClick={() => void confirm()}>
-                  {pending === "grant" ? "Sí, confirmar" : "Sí, cancelar S2 Plus"}
+                  {pending === "grant" ? "Sí, confirmar" : "Sí, cancelar S2 Box"}
                 </Button>
                 <Button disabled={busy} onClick={() => setPending(null)}>Volver</Button>
               </div>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              <Button variant="dark" onClick={() => ask("grant")}>{isActive ? "Extender S2 Plus" : "Activar S2 Plus"}</Button>
-              {isActive && <Button onClick={() => ask("cancel")}>Cancelar S2 Plus</Button>}
+              <Button variant="dark" onClick={() => ask("grant")}>{isActive ? "Extender S2 Box" : "Activar S2 Box"}</Button>
+              {isActive && <Button onClick={() => ask("cancel")}>Cancelar S2 Box</Button>}
             </div>
           )}
         </div>

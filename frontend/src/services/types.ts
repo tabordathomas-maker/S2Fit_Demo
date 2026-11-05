@@ -162,8 +162,6 @@ export interface ContentItem {
   summary: string | null;
   meta: string | null;
   meal_slot: string | null;
-  access: "free" | "plus";
-  locked: boolean;
   cover_url: string | null;
   body: string | null;
   media_url: string | null;
@@ -187,9 +185,7 @@ export interface Challenge {
   id: number;
   title: string;
   description: string | null;
-  access: "free" | "plus";
   target_count: number;
-  locked: boolean;
   joined: boolean;
   progress: number;
   completed: boolean;
@@ -207,7 +203,6 @@ export interface Reward {
   name: string;
   description: string | null;
   threshold_pct: number;
-  access: "free" | "plus";
   unlocked: boolean;
   redemption_status: "requested" | "fulfilled" | "cancelled" | null;
 }

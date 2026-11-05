@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from pydantic import Field
 
-from app.models.enums import AccessLevel, RewardKind
+from app.models.enums import RewardKind
 from app.schemas.common import InputModel, ORMModel
 
 
@@ -49,7 +49,6 @@ class RewardOut(ORMModel):
     name: str
     description: str | None
     threshold_pct: int
-    access: str
     unlocked: bool
     redemption_status: str | None
 
@@ -64,9 +63,7 @@ class ChallengeOut(ORMModel):
     id: int
     title: str
     description: str | None
-    access: str
     target_count: int
-    locked: bool
     joined: bool
     progress: int
     completed: bool
@@ -85,7 +82,6 @@ class AdminChallengeOut(ORMModel):
     id: int
     title: str
     description: str | None
-    access: str
     target_count: int
     is_active: bool
     is_demo: bool
@@ -95,7 +91,6 @@ class AdminChallengeOut(ORMModel):
 class ChallengeCreate(InputModel):
     title: str = Field(min_length=2, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
-    access: AccessLevel = AccessLevel.plus
     target_count: int = Field(gt=0, le=365)
     is_active: bool = True
     sort_order: int = 0
@@ -104,7 +99,6 @@ class ChallengeCreate(InputModel):
 class ChallengeUpdate(InputModel):
     title: str | None = Field(default=None, min_length=2, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
-    access: AccessLevel | None = None
     target_count: int | None = Field(default=None, gt=0, le=365)
     is_active: bool | None = None
     sort_order: int | None = None
@@ -116,7 +110,6 @@ class AdminRewardOut(ORMModel):
     name: str
     description: str | None
     threshold_pct: int
-    access: str
     is_active: bool
     is_demo: bool
     sort_order: int
@@ -127,7 +120,6 @@ class RewardCreate(InputModel):
     name: str = Field(min_length=2, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     threshold_pct: int = Field(ge=1, le=100)
-    access: AccessLevel = AccessLevel.free
     is_active: bool = True
     sort_order: int = 0
 
@@ -136,7 +128,6 @@ class RewardUpdate(InputModel):
     name: str | None = Field(default=None, min_length=2, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     threshold_pct: int | None = Field(default=None, ge=1, le=100)
-    access: AccessLevel | None = None
     is_active: bool | None = None
     sort_order: int | None = None
 

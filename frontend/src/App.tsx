@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
 import { Spinner } from "./components/ui";
@@ -10,7 +10,7 @@ import { CartProvider } from "./features/cart/CartProvider";
 import { ProductPage } from "./features/catalog/ProductPage";
 import { ShopPage } from "./features/catalog/ShopPage";
 import { OrdersPage } from "./features/orders/OrdersPage";
-import { PlusPage } from "./features/subscriptions/PlusPage";
+import { S2BoxPage } from "./features/subscriptions/S2BoxPage";
 import { AccountPage } from "./pages/AccountPage";
 import { HomePage } from "./pages/HomePage";
 import { MiRutaPage } from "./pages/MiRutaPage";
@@ -29,7 +29,10 @@ export function AppRoutes() {
         <Route path="tienda/:slug" element={<ProductPage />} />
         <Route path="carrito" element={<CartPage />} />
         <Route path="mi-ruta" element={<MiRutaPage />} />
-        <Route path="plus" element={<PlusPage />} />
+        <Route path="s2-box" element={<S2BoxPage />} />
+        {/* Enlaces antiguos de S2 Plus */}
+        <Route path="s2-plus" element={<Navigate to="/s2-box" replace />} />
+        <Route path="plus" element={<Navigate to="/s2-box" replace />} />
         <Route path="ingresar" element={<LoginPage />} />
         <Route path="registro" element={<RegisterPage />} />
         <Route path="recuperar-contrasena" element={<ForgotPasswordPage />} />

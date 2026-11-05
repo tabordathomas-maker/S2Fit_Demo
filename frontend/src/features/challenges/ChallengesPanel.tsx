@@ -5,20 +5,18 @@ import { errorMessage } from "../../services/api";
 import type { ChallengesSummary } from "../../services/types";
 import { challengesApi } from "./api";
 
-/** Lista de retos (gratis o S2 Plus) con unirse / registrar avance del día. */
+/** Lista de retos (todos gratis) con unirse / registrar avance del día. */
 export function ChallengesPanel({
   data,
-  access,
   onUpdate,
   canParticipate,
 }: {
   data: ChallengesSummary;
-  access: "free" | "plus";
   onUpdate: (next: ChallengesSummary) => void;
   canParticipate: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const challenges = data.challenges.filter((c) => c.access === access);
+  const challenges = data.challenges;
 
   const act = async (fn: () => Promise<ChallengesSummary>) => {
     setError(null);
@@ -44,7 +42,7 @@ export function ChallengesPanel({
             {c.description && <p className="muted text-sm">{c.description}</p>}
             <ProgressBar percent={(c.progress / c.target_count) * 100} label={`Avance de ${c.title}`} />
             <p className="text-sm font-bold">{c.progress} de {c.target_count} días</p>
-            {canParticipate && !c.locked && !c.joined && (
+            {canParticipate && !c.joined && (
               <Button onClick={() => act(() => challengesApi.join(c.id))}>Unirme</Button>
             )}
             {c.joined && !c.completed && (

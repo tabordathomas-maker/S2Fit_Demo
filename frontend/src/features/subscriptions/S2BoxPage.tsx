@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Alert, Badge, Button, Spinner } from "../../components/ui";
+import { S2BOX } from "../../content/s2box";
 import { errorMessage } from "../../services/api";
 import { formatCOP } from "../../services/format";
 import type { MembershipStatus, Plan, SubscriptionRequestCreated } from "../../services/types";
@@ -9,16 +10,12 @@ import { useAsync } from "../../services/useAsync";
 import { buildWhatsAppUrl, navigation } from "../../services/whatsapp";
 import { useAuth } from "../auth/AuthProvider";
 import { WhatsAppHandoff } from "../orders/WhatsAppHandoff";
+import { BenefitIcon } from "../s2box/BenefitIcon";
+import { BoxGallery } from "../s2box/BoxGallery";
 import { PENDING_PLAN_KEY, subscriptionsApi } from "./api";
 import { MembershipCard, needsRenewal } from "./MembershipCard";
-import { PlusBenefitsArea } from "./PlusBenefitsArea";
 
-const BENEFITS = [
-  { t: "Retos de gym", d: "Retos progresivos que suben de nivel contigo." },
-  { t: "Rutinas personalizadas", d: "Según tus necesidades y tus objetivos." },
-  { t: "Comunidad S2", d: "Un espacio para avanzar acompañada y compartir tu proceso." },
-  { t: "Seguimiento de hábitos", d: "Cumplimiento de metas medido por porcentajes." },
-];
+const PLANS_ID = "planes";
 
 export function planPriceLabel(plan: Plan): string {
   return plan.price ? `${formatCOP(plan.price)} · ${plan.period_label}` : "Consulta el precio por WhatsApp";
@@ -41,7 +38,7 @@ function writePendingPlan(code: string | null) {
   }
 }
 
-export function PlusPage() {
+export function S2BoxPage() {
   const { session, isAdmin } = useAuth();
   const navigate = useNavigate();
   const plans = useAsync(() => subscriptionsApi.plans(), []);
@@ -49,7 +46,7 @@ export function PlusPage() {
     () => (session ? subscriptionsApi.membership() : Promise.resolve(null)),
     [session?.user.id],
   );
-  const whatsappUrl = buildWhatsAppUrl("Hola, quiero información sobre S2 Plus.");
+  const whatsappUrl = buildWhatsAppUrl("Hola, quiero información sobre S2 Box.");
   const [pendingPlan, setPendingPlan] = useState<string | null>(readPendingPlan);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +56,7 @@ export function PlusPage() {
     if (!session) {
       // Se conserva el plan elegido para continuar después de iniciar sesión.
       writePendingPlan(planCode);
-      navigate(`/ingresar?next=${encodeURIComponent("/plus")}`);
+      navigate(`/ingresar?next=${encodeURIComponent("/s2-box")}`);
       return;
     }
     setBusy(true);
@@ -80,6 +77,8 @@ export function PlusPage() {
     }
   };
 
+  const goToPlans = () => document.getElementById(PLANS_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   const status = membership.data;
   const isActive = Boolean(status?.is_active);
   const pendingPlanObj = plans.data?.find((p) => p.code === pendingPlan);
@@ -88,26 +87,47 @@ export function PlusPage() {
 
   return (
     <>
-      <section className="bg-burgundy py-[72px] text-cream">
+      <section className="bg-burgundy py-[72px] text-cream" aria-labelledby="box-title">
         <div className="wrap flex max-w-[800px] flex-col items-start gap-[18px]">
-          <span className="font-bold text-beige">SUSCRIPCIÓN</span>
-          <h1 className="text-[clamp(34px,5vw,52px)]">S2 Plus</h1>
-          <p className="text-[19px] leading-relaxed text-beige">
-            Una comunidad más personalizada según tus necesidades y objetivos. Constancia que se recompensa de verdad.
-          </p>
+          <span className="font-bold tracking-wide text-beige">{S2BOX.brandPhrase.toUpperCase()}</span>
+          <h1 id="box-title" className="text-[clamp(34px,5vw,52px)]">{S2BOX.name}</h1>
+          <p className="font-display text-[clamp(20px,3vw,28px)] text-beige">{S2BOX.tagline}</p>
+          <p className="text-[19px] leading-relaxed text-cream">{S2BOX.intro}</p>
           {mainPlan && <p className="text-lg font-bold">Precio: {planPriceLabel(mainPlan)}</p>}
-          {isActive && <Badge tone="beige">Tu membresía está activa</Badge>}
+          {isActive && <Badge tone="beige">Tu suscripción está activa</Badge>}
+          <Button variant="light" onClick={goToPlans}>{S2BOX.cta}</Button>
         </div>
       </section>
 
-      <section className="py-[72px]">
-        <div className="wrap flex flex-col gap-14">
+      <section className="py-[72px]" aria-labelledby="benefits-title">
+        <div className="wrap flex flex-col gap-8">
+          <h2 id="benefits-title" className="text-[clamp(26px,3.5vw,36px)] text-burgundy">{S2BOX.benefitsTitle}</h2>
+          <ul className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))]">
+            {S2BOX.benefits.map((b) => (
+              <li key={b.title} className="card flex flex-col gap-3 bg-cream">
+                <span className="text-burgundy"><BenefitIcon name={b.icon} /></span>
+                <h3 className="text-xl text-burgundy">{b.title}</h3>
+                <p className="muted">{b.description}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="bg-cream py-[72px]" aria-label="Galería de la caja">
+        <div className="wrap">
+          <BoxGallery />
+        </div>
+      </section>
+
+      <section id={PLANS_ID} className="py-[72px]" aria-labelledby="plans-title">
+        <div className="wrap flex flex-col gap-8">
           {created && (
             <WhatsAppHandoff
               title={created.already_existed ? "Ya tenías una solicitud pendiente" : "¡Solicitud registrada!"}
               reference={created.reference}
               message={created.whatsapp_message}
-              detail="Acuerda el precio final, la vigencia y el medio de pago por WhatsApp. Activaremos tu membresía cuando verifiquemos el pago."
+              detail="Acuerda el precio final, la vigencia y el medio de pago por WhatsApp. Activaremos tu suscripción cuando verifiquemos el pago."
             />
           )}
           {error && <Alert>{error}</Alert>}
@@ -122,36 +142,27 @@ export function PlusPage() {
             </Alert>
           )}
 
-          {session && membership.loading && <Spinner label="Consultando tu membresía…" />}
+          {session && membership.loading && <Spinner label="Consultando tu suscripción…" />}
           {membership.error && <Alert>{membership.error}</Alert>}
           {status && (status.subscription || status.pending_request) && (
             <MembershipCard status={status} busy={busy} onRenew={(code) => subscribe(code)} />
           )}
 
-          <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr))]">
-            {BENEFITS.map((b) => (
-              <div key={b.t} className="card flex flex-col gap-2.5">
-                <h2 className="text-xl text-burgundy">{b.t}</h2>
-                <p className="muted">{b.d}</p>
-              </div>
-            ))}
-          </div>
-
           <div className="flex flex-col gap-5">
-            <h2 className="text-[28px]">Planes</h2>
+            <h2 id="plans-title" className="text-[clamp(26px,3.5vw,36px)] text-burgundy">{S2BOX.plansTitle}</h2>
             {plans.loading && <Spinner />}
             {plans.error && <Alert>{plans.error}</Alert>}
             {!plans.loading && !plans.error && plans.data?.length === 0 && (
               <div className="flex flex-col gap-3">
                 <Alert tone="info">
-                  <p>Pronto abriremos las suscripciones a S2 Plus. Escríbenos por WhatsApp para más información.</p>
+                  <p>Pronto abriremos las suscripciones a S2 Box. Escríbenos por WhatsApp para más información.</p>
                   {whatsappUrl && (
                     <a href={whatsappUrl} target="_blank" rel="noreferrer" className="font-bold text-burgundy underline">Escribir por WhatsApp</a>
                   )}
                 </Alert>
                 {isAdmin && (
                   <Alert tone="info">
-                    No hay planes activos. Créalo en <Link to="/admin?tab=plus" className="font-bold text-burgundy underline">Admin → S2 Plus</Link>.
+                    No hay planes activos. Créalo en <Link to="/admin?tab=s2box" className="font-bold text-burgundy underline">Admin → S2 Box</Link>.
                   </Alert>
                 )}
               </div>
@@ -179,7 +190,7 @@ export function PlusPage() {
             </p>
           </div>
 
-          <PlusBenefitsArea active={isActive} signedIn={Boolean(session)} />
+          <p className="text-center text-sm text-muted">{S2BOX.note}</p>
         </div>
       </section>
     </>

@@ -64,6 +64,7 @@ class Reward(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text)
     threshold_pct: Mapped[int] = mapped_column(Integer)
+    # Obsoleta: Mi Ruta es gratis; ya no filtra nada. Se conserva para evitar una migración destructiva.
     access: Mapped[str] = mapped_column(String(10), default=AccessLevel.free)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
@@ -80,7 +81,8 @@ class Challenge(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text)
-    access: Mapped[str] = mapped_column(String(10), default=AccessLevel.plus)
+    # Obsoleta: Mi Ruta es gratis; ya no filtra nada. Se conserva para evitar una migración destructiva.
+    access: Mapped[str] = mapped_column(String(10), default=AccessLevel.free)
     # Número de días con avance registrado para completar el reto.
     target_count: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())

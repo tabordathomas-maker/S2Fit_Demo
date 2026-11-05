@@ -10,7 +10,7 @@ import { useAsync } from "../services/useAsync";
 const PILLARS = [
   { n: "01", t: "Tienda", d: "Conjuntos, leggings, tops y shorts seamless que se adaptan a tu cuerpo y a tu movimiento.", cta: "Comprar", to: "/tienda" },
   { n: "02", t: "Mi Ruta (gratis)", d: "Rutinas, recetas y contenido de crecimiento personal, más tu panel de hábitos con descuentos.", cta: "Entrar", to: "/mi-ruta" },
-  { n: "03", t: "S2 Plus", d: "Comunidad, rutinas personalizadas, retos y recompensas en marcas aliadas.", cta: "Descubrir", to: "/plus" },
+  { n: "03", t: "S2 Box", d: "Una caja sorpresa cada mes con tu prenda S2, suplementación y mucho más.", cta: "Descubrir", to: "/s2-box" },
 ];
 
 function FeaturedProducts() {

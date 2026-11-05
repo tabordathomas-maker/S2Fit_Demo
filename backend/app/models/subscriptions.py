@@ -70,7 +70,7 @@ class SubscriptionRequest(TimestampMixin, Base):
 
 
 class Subscription(TimestampMixin, Base):
-    """Membresía S2 Plus de una persona (una fila por usuario; las renovaciones la extienden)."""
+    """Membresía S2 Box de una persona (una fila por usuario; las renovaciones la extienden)."""
 
     __tablename__ = "subscriptions"
     __table_args__ = (

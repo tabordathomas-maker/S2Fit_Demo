@@ -1,6 +1,5 @@
-"""Rutinas personalizadas: estados de los pasos, avance, estadísticas y reglas de acceso."""
+"""Rutinas personalizadas: estados de los pasos, avance, estadísticas y reglas de acceso (Mi Ruta es gratis: basta con tener sesión)."""
 
-import uuid
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -10,18 +9,11 @@ from sqlalchemy.orm import Session, selectinload
 from app.core import clock
 from app.core.config import get_settings
 from app.core.errors import AppError, conflict, not_found
-from app.models import CustomRoutine, Profile, RoutineStep, RoutineStepCompletion, Subscription
+from app.models import CustomRoutine, Profile, RoutineStep, RoutineStepCompletion
 from app.models.enums import RoutineStatus
 from app.schemas.routines import CompleteStep
-from app.services.subscriptions import has_active_membership
 
 WEEKS = 8
-PLUS_REQUIRED_MESSAGE = "Tu rutina personalizada es parte de S2 Plus. Renueva tu membresía para continuar."
-
-
-def plus_required() -> AppError:
-    return AppError(403, "plus_required", PLUS_REQUIRED_MESSAGE)
-
 
 def _percent(done: int, total: int) -> int:
     return round(done * 100 / total) if total else 0
@@ -69,20 +61,6 @@ def list_user_routines(db: Session, user: Profile) -> list[CustomRoutine]:
             )
         )
     )
-
-
-def user_has_plus(db: Session, user_id: uuid.UUID) -> bool:
-    return has_active_membership(db, user_id, clock.now())
-
-
-def require_plus(db: Session, user: Profile) -> None:
-    if not user_has_plus(db, user.id):
-        raise plus_required()
-
-
-def plus_until(db: Session, user_id: uuid.UUID) -> datetime | None:
-    """Fecha de fin de la membresía, solo para mostrar (el acceso lo decide has_active_membership)."""
-    return db.scalar(select(Subscription.ends_at).where(Subscription.user_id == user_id))
 
 
 def _completion_of(step: RoutineStep):
@@ -166,7 +144,6 @@ def detail(routine: CustomRoutine) -> dict:
         "goal": routine.goal,
         "status": routine.status,
         "sequential": routine.sequential,
-        "locked": False,
         "steps": [
             {
                 "id": s.id,
@@ -187,18 +164,17 @@ def detail(routine: CustomRoutine) -> dict:
     }
 
 
-def summary(routine: CustomRoutine, locked: bool) -> dict:
+def summary(routine: CustomRoutine) -> dict:
     done, total, pct = progress(routine)
     return {
         "id": routine.id,
         "title": routine.title,
         "goal": routine.goal,
         "status": routine.status,
-        "locked": locked,
         "progress_pct": pct,
         "completed_steps": done,
         "total_steps": total,
-        "stats": None if locked else stats(routine),
+        "stats": stats(routine),
     }
 
 

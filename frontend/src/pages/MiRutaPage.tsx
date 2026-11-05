@@ -1,9 +1,10 @@
-import { Alert, LinkButton, SectionTitle } from "../components/ui";
+import { Alert, Badge, LinkButton, SectionTitle } from "../components/ui";
 import { useAuth } from "../features/auth/AuthProvider";
 import { challengesApi } from "../features/challenges/api";
 import { ChallengesPanel } from "../features/challenges/ChallengesPanel";
 import { RewardsGrid } from "../features/challenges/RewardsGrid";
 import { ContentTabs } from "../features/content/ContentGrid";
+import { MealsPanel } from "../features/content/MealsPanel";
 import { HabitsPanel } from "../features/habits/HabitsPanel";
 import { RoutinePanel } from "../features/routines/RoutinePanel";
 import { useAsync } from "../services/useAsync";
@@ -17,6 +18,8 @@ function SignedInWellness() {
     <>
       <RoutinePanel />
 
+      <MealsPanel />
+
       <div className="card flex flex-col gap-6 p-6 sm:p-9">
         <HabitsPanel onChange={() => void rewards.reload()} />
         <p className="muted">
@@ -28,10 +31,10 @@ function SignedInWellness() {
       </div>
 
       <div className="flex flex-col gap-4">
-        <h2 className="text-[26px]">Retos gratuitos</h2>
+        <h2 className="text-[26px]">Retos</h2>
         {challenges.error && <Alert>{challenges.error}</Alert>}
         {challenges.data && (
-          <ChallengesPanel data={challenges.data} access="free" canParticipate onUpdate={challenges.setData} />
+          <ChallengesPanel data={challenges.data} canParticipate onUpdate={(next) => { challenges.setData(next); void rewards.reload(); }} />
         )}
       </div>
     </>
@@ -44,9 +47,12 @@ export function MiRutaPage() {
   return (
     <section className="py-[72px]">
       <div className="wrap flex flex-col gap-14">
-        <SectionTitle eyebrow="GRATIS CON EL QR DE TU PRENDA" title="Mi Ruta S2">
-          Rutinas, recetas y crecimiento personal para empezar hoy.
-        </SectionTitle>
+        <div className="flex flex-col items-start gap-3">
+          <Badge tone="burgundy">Gratis</Badge>
+          <SectionTitle eyebrow="GRATIS CON EL QR DE TU PRENDA" title="Mi Ruta S2">
+            Rutinas, recetas, retos y crecimiento personal para empezar hoy. Todo Mi Ruta es gratis.
+          </SectionTitle>
+        </div>
 
         <ContentTabs />
 
@@ -62,12 +68,6 @@ export function MiRutaPage() {
             </div>
           </div>
         )}
-
-        <div className="flex flex-col items-start gap-3">
-          <h2 className="text-[26px]">¿Quieres ir más lejos?</h2>
-          <p className="muted">S2 Plus suma comunidad, rutinas personalizadas y recompensas reales.</p>
-          <LinkButton to="/plus" variant="dark">Conocer S2 Plus</LinkButton>
-        </div>
       </div>
     </section>
   );

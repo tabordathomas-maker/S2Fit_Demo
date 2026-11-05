@@ -25,7 +25,7 @@ def order_message(order: Order) -> str:
 
 
 def subscription_message(request: SubscriptionRequest) -> str:
-    action = "renovar mi suscripción a S2 Plus" if request.kind == SubscriptionRequestKind.renewal else "suscribirme a S2 Plus"
+    action = "renovar mi suscripción a S2 Box" if request.kind == SubscriptionRequestKind.renewal else "suscribirme a S2 Box"
     return (
         f"Hola, quiero {action}. Elegí el plan {request.plan.name}. "
         "Quisiera confirmar el precio, la vigencia y los medios de pago por convenio. "

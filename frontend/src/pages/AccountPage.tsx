@@ -69,13 +69,13 @@ export function AccountPage() {
             membership.data.subscription || membership.data.pending_request ? (
               <div className="flex flex-col gap-3">
                 <MembershipCard status={membership.data} />
-                <LinkButton to="/plus" className="self-start">Ir a S2 Plus</LinkButton>
+                <LinkButton to="/s2-box" className="self-start">Ir a S2 Box</LinkButton>
               </div>
             ) : (
               <div className="card flex flex-col items-start gap-3">
                 <h2 className="text-2xl">Mi membresía</h2>
-                <p className="muted">Aún no tienes S2 Plus.</p>
-                <LinkButton to="/plus" variant="dark">Conocer S2 Plus</LinkButton>
+                <p className="muted">Aún no tienes S2 Box.</p>
+                <LinkButton to="/s2-box" variant="dark">Conocer S2 Box</LinkButton>
               </div>
             )
           )}
@@ -98,7 +98,7 @@ export function AccountPage() {
                   {payments.data.map((p) => (
                     <tr key={p.id} className="border-b border-beige/60">
                       <td className="py-2 font-mono">{p.operation_reference}</td>
-                      <td>{p.kind === "order" ? "Compra" : "S2 Plus"}</td>
+                      <td>{p.kind === "order" ? "Compra" : "S2 Box"}</td>
                       <td>{p.amount ? formatCOP(p.amount) : "Por acordar"}</td>
                       <td>{p.method ? paymentMethodLabel[p.method] : "—"}</td>
                       <td>{paymentStatusLabel[p.status]}</td>

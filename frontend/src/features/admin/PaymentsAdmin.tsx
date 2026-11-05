@@ -51,13 +51,13 @@ export function PaymentsAdmin() {
 
 function ConfirmedNotice({ payment: p }: { payment: AdminPayment }) {
   const message = p.kind === "subscription"
-    ? `Pago confirmado. S2 Plus de ${p.customer_name ?? p.customer_email} activa hasta ${formatShortDate(p.subscription_ends_at)}.`
+    ? `Pago confirmado. S2 Box de ${p.customer_name ?? p.customer_email} activa hasta ${formatShortDate(p.subscription_ends_at)}.`
     : `Pago confirmado. Pedido de ${p.customer_name ?? p.customer_email} listo para preparar.`;
   return (
     <li className="card flex flex-col gap-2 p-5">
       <span className="font-mono font-bold">{p.operation_reference}</span>
       <Alert tone="success">{message}</Alert>
-      {p.kind === "subscription" && <Link className="font-bold text-burgundy underline" to="/admin?tab=plus">Ver en S2 Plus</Link>}
+      {p.kind === "subscription" && <Link className="font-bold text-burgundy underline" to="/admin?tab=s2box">Ver en S2 Box</Link>}
     </li>
   );
 }
@@ -102,7 +102,7 @@ function PaymentRow({ payment: p, onChanged, onConfirmed }: {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-lg font-bold">{p.operation_reference}</span>
-          <Badge tone={p.kind === "order" ? "beige" : "burgundy"}>{p.kind === "order" ? "Pedido" : `S2 Plus · ${p.plan_name}`}</Badge>
+          <Badge tone={p.kind === "order" ? "beige" : "burgundy"}>{p.kind === "order" ? "Pedido" : `S2 Box · ${p.plan_name}`}</Badge>
         </div>
         <Badge tone={p.status === "confirmed" ? "green" : open ? "beige" : "red"}>{paymentStatusLabel[p.status]}</Badge>
       </div>

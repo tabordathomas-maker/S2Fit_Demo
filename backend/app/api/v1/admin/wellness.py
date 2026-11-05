@@ -1,4 +1,4 @@
-"""Contenido de Mi Ruta / S2 Plus, retos, recompensas y redenciones."""
+"""Contenido de Mi Ruta / S2 Box, retos, recompensas y redenciones."""
 
 from fastapi import APIRouter, status
 from sqlalchemy import select

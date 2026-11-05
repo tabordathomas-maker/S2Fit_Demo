@@ -13,7 +13,7 @@ from app.schemas.subscriptions import (
 )
 from app.services import subscriptions, whatsapp
 
-router = APIRouter(tags=["S2 Plus"])
+router = APIRouter(tags=["S2 Box"])
 
 
 @router.get("/plans", response_model=list[PlanOut])

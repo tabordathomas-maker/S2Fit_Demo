@@ -85,7 +85,7 @@ def upload_product_image(admin: AdminUser, db: DbSession, file: Annotated[Upload
 
 @router.post("/uploads/content-media", response_model=MediaUploadResult)
 def upload_content_media(admin: AdminUser, db: DbSession, file: Annotated[UploadFile, File()]):
-    """Imagen de portada o video para rutinas, recetas y contenido de S2 Plus."""
+    """Imagen de portada o video para rutinas, recetas y contenido de S2 Box."""
     content = file.file.read(storage.MAX_VIDEO_BYTES + 1)
     url, media_type = storage.upload_content_media(content, file.content_type or "")
     audit.record(db, admin, "upload.content_media", "storage", storage.object_key(url), {"filename": file.filename, "type": media_type, "url": url})

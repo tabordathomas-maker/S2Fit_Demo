@@ -1,4 +1,4 @@
-"""Activa (o cancela) S2 Plus de una cuenta como cortesía administrativa, sin pagos.
+"""Activa (o cancela) S2 Box de una cuenta como cortesía administrativa, sin pagos.
 
 Se ejecuta en una terminal con acceso a DATABASE_URL (tu equipo apuntando a la base
 de Supabase), nunca desde el navegador. Usa la misma lógica que el panel de administración.
@@ -8,7 +8,7 @@ Uso:
   python -m scripts.grant_membership --email persona@correo.com --cancel --reason "Fin de prueba"
 
 La persona debe haberse registrado e iniciado sesión al menos una vez. Usa el primer
-plan activo. No crea pagos ni renovaciones. Si ya tiene S2 Plus vigente, la extiende.
+plan activo. No crea pagos ni renovaciones. Si ya tiene S2 Box vigente, la extiende.
 """
 
 import argparse
@@ -36,13 +36,13 @@ def grant_membership(db, email: str, days: int = 30, cancel: bool = False, reaso
     if cancel:
         subscriptions.cancel_membership(db, profile, None, reason)
         db.commit()
-        return f"{email}: S2 Plus cancelada. Motivo: {reason}"
+        return f"{email}: S2 Box cancelada. Motivo: {reason}"
 
     sub = subscriptions.grant_membership(db, profile, days, None, reason)
     db.commit()
     timezone = get_settings().app_timezone
     until = sub.ends_at.astimezone(ZoneInfo(timezone)).date()
-    return f"{email}: S2 Plus activa hasta {until} ({timezone}). Motivo: {reason}"
+    return f"{email}: S2 Box activa hasta {until} ({timezone}). Motivo: {reason}"
 
 
 def main() -> None:

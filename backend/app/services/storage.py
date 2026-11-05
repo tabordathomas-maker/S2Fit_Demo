@@ -70,8 +70,19 @@ def upload_product_image(content: bytes, content_type: str) -> str:
     return _upload(content, content_type, "products", extension)
 
 
+def upload_box_image(content: bytes, content_type: str) -> str:
+    """Imagen de la galería de S2 Box (carpeta "s2box/" del bucket)."""
+    _ensure_configured()
+    extension = IMAGE_TYPES.get(content_type)
+    if extension is None:
+        raise AppError(422, "invalid_file_type", "Solo se permiten imágenes JPG, PNG o WEBP.")
+    if len(content) > MAX_IMAGE_BYTES:
+        raise AppError(422, "file_too_large", "La imagen no puede superar 5 MB.")
+    return _upload(content, content_type, "s2box", extension)
+
+
 def upload_content_media(content: bytes, content_type: str) -> tuple[str, str]:
-    """Sube una imagen o un video de Mi Ruta / S2 Plus. Devuelve (url, "image" | "video")."""
+    """Sube una imagen o un video de Mi Ruta / S2 Box. Devuelve (url, "image" | "video")."""
     _ensure_configured()
     if content_type in IMAGE_TYPES:
         if len(content) > MAX_IMAGE_BYTES:

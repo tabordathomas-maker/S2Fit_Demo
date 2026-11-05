@@ -2,6 +2,7 @@
 
 from app.models.audit import AdminAuditLog
 from app.models.base import Base
+from app.models.box_images import BoxImage
 from app.models.catalog import Category, InventoryMovement, Product, ProductVariant
 from app.models.content import ContentItem
 from app.models.orders import Order, OrderItem
@@ -22,6 +23,7 @@ from app.models.wellness import (
 __all__ = [
     "AdminAuditLog",
     "Base",
+    "BoxImage",
     "Category",
     "Challenge",
     "ChallengeParticipation",

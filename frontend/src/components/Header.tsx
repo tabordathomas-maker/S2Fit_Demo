@@ -9,7 +9,7 @@ const NAV = [
   { to: "/", label: "Inicio", end: true },
   { to: "/tienda", label: "Tienda" },
   { to: "/mi-ruta", label: "Mi Ruta" },
-  { to: "/plus", label: "S2 Plus" },
+  { to: "/s2-box", label: "S2 Box" },
 ];
 
 function navClass({ isActive }: { isActive: boolean }) {

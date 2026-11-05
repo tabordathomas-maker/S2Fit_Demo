@@ -84,7 +84,6 @@ export interface AdminContent {
   cover_url: string | null;
   meta: string | null;
   meal_slot: string | null;
-  access: "free" | "plus";
   is_published: boolean;
   is_demo: boolean;
   sort_order: number;
@@ -94,7 +93,6 @@ export interface AdminChallenge {
   id: number;
   title: string;
   description: string | null;
-  access: "free" | "plus";
   target_count: number;
   is_active: boolean;
   is_demo: boolean;
@@ -107,7 +105,6 @@ export interface AdminReward {
   name: string;
   description: string | null;
   threshold_pct: number;
-  access: "free" | "plus";
   is_active: boolean;
   is_demo: boolean;
   sort_order: number;
@@ -159,8 +156,6 @@ export interface AdminRoutine {
   user_id: string;
   user_email: string | null;
   user_name: string | null;
-  has_plus: boolean;
-  plus_until: string | null;
   title: string;
   description: string | null;
   goal: string | null;

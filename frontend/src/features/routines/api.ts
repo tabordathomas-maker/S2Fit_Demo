@@ -26,7 +26,6 @@ export interface RoutineSummary {
   title: string;
   goal: string | null;
   status: "active" | "archived";
-  locked: boolean;
   progress_pct: number;
   completed_steps: number;
   total_steps: number;
@@ -54,7 +53,6 @@ export interface RoutineDetail {
   goal: string | null;
   status: string;
   sequential: boolean;
-  locked: boolean;
   steps: RoutineStep[];
   stats: RoutineStats;
 }

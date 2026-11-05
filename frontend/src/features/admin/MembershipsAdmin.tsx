@@ -7,6 +7,7 @@ import { formatPhone } from "../../services/phone";
 import type { Plan } from "../../services/types";
 import { useAsync } from "../../services/useAsync";
 import { adminApi, type AdminSubscription } from "./api";
+import { BoxGalleryAdmin } from "./BoxGalleryAdmin";
 import { ManualMembership } from "./ManualMembership";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -145,6 +146,8 @@ export function MembershipsAdmin() {
       </section>
 
       <ManualMembership plans={plans.data} onChanged={() => void subs.reload()} />
+
+      <BoxGalleryAdmin />
 
       <section className="flex flex-col gap-4">
         <h3 className="text-2xl">Solicitudes pendientes</h3>

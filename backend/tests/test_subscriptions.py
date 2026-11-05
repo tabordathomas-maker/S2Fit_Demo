@@ -1,4 +1,4 @@
-"""Solicitudes de S2 Plus, activación, renovación, vencimiento y acceso a contenido exclusivo."""
+"""Solicitudes de S2 Box, activación, renovación y vencimiento. Mi Ruta es gratis: la membresía no condiciona el contenido."""
 
 from datetime import datetime, timedelta
 
@@ -73,7 +73,7 @@ def test_unknown_plan_is_rejected(client, db):
     assert _request(client, new_user(), "plan-inventado").status_code == 404
 
 
-def test_pending_request_does_not_grant_plus_access(client, db):
+def test_pending_request_keeps_membership_inactive_but_content_stays_free(client, db):
     # Arrange
     create_plan(db)
     user = new_user()
@@ -88,8 +88,8 @@ def test_pending_request_does_not_grant_plus_access(client, db):
     # Assert
     assert membership["is_active"] is False
     assert membership["pending_request"]["status"] == "pending_payment"
-    assert content.status_code == 403 and content.json()["error"]["code"] == "plus_required"
-    assert listing[0]["locked"] is True and listing[0]["body"] is None
+    assert content.status_code == 200 and content.json()["body"] == "Avena con frutos rojos"
+    assert listing[0]["body"] == "Avena con frutos rojos"
 
 
 def test_confirmation_requires_agreed_terms(client, db):
@@ -181,7 +181,7 @@ def test_early_renewal_extends_from_current_end_date(client, db, frozen_clock):
     assert len(sub["renewals"]) == 2
 
 
-def test_membership_expires_and_content_is_locked_again(client, db, frozen_clock):
+def test_membership_expires_and_content_stays_available(client, db, frozen_clock):
     # Arrange
     create_plan(db)
     admin, user = create_admin(db), new_user()
@@ -196,7 +196,7 @@ def test_membership_expires_and_content_is_locked_again(client, db, frozen_clock
     # Assert
     assert membership["is_active"] is False
     assert membership["subscription"]["status"] == "expired"
-    assert content.status_code == 403
+    assert content.status_code == 200
 
 
 def test_renewal_after_expiry_starts_a_new_period_today(client, db, frozen_clock):
@@ -216,7 +216,7 @@ def test_renewal_after_expiry_starts_a_new_period_today(client, db, frozen_clock
     assert datetime.fromisoformat(sub["ends_at"]) == renewal_day + timedelta(days=30)
 
 
-def test_admin_cancellation_revokes_access(client, db, frozen_clock):
+def test_admin_cancellation_ends_membership_without_locking_content(client, db, frozen_clock):
     # Arrange
     create_plan(db)
     admin, user = create_admin(db), new_user()
@@ -230,7 +230,8 @@ def test_admin_cancellation_revokes_access(client, db, frozen_clock):
 
     # Assert
     assert cancelled.status_code == 200
-    assert client.get(f"/api/v1/content/{content_id}", headers=user.headers).status_code == 403
+    assert client.get("/api/v1/subscriptions/me", headers=user.headers).json()["is_active"] is False
+    assert client.get(f"/api/v1/content/{content_id}", headers=user.headers).status_code == 200
     assert db.query(AdminAuditLog).filter_by(action="subscription.cancel").count() == 1
 
 

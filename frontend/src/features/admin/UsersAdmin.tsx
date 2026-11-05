@@ -26,7 +26,7 @@ export function UsersAdmin() {
         {profiles.error && <Alert>{profiles.error}</Alert>}
         <div className="overflow-x-auto rounded-3xl bg-white p-4">
           <table className="w-full min-w-[680px] text-left text-sm">
-            <thead><tr className="border-b border-beige"><th className="py-2">Nombre</th><th>Correo</th><th>Celular</th><th>Rol</th><th>S2 Plus</th><th>Registro</th></tr></thead>
+            <thead><tr className="border-b border-beige"><th className="py-2">Nombre</th><th>Correo</th><th>Celular</th><th>Rol</th><th>S2 Box</th><th>Registro</th></tr></thead>
             <tbody>
               {profiles.data?.map((p) => (
                 <tr key={p.id} className="border-b border-beige/60">

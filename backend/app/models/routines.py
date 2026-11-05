@@ -21,7 +21,7 @@ from app.models.enums import RoutineStatus
 
 
 class CustomRoutine(TimestampMixin, Base):
-    """Rutina creada por el administrador para una persona; se ve como roadmap en Mi Ruta (S2 Plus)."""
+    """Rutina creada por el administrador para una persona; se ve como roadmap en Mi Ruta (S2 Box)."""
 
     __tablename__ = "custom_routines"
     __table_args__ = (

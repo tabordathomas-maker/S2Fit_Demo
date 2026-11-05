@@ -18,14 +18,14 @@ def test_free_content_is_public(client, db):
 
     # Assert
     assert listing.status_code == 200
-    assert listing.json()[0]["locked"] is False and listing.json()[0]["body"] == "Paso a paso"
+    assert "locked" not in listing.json()[0] and listing.json()[0]["body"] == "Paso a paso"
 
 
-def test_plus_content_requires_login(client, db):
+def test_content_marked_plus_is_public_without_membership(client, db):
     item = ContentItem(kind="meal", title="Cena del día", access="plus")
     db.add(item)
     db.commit()
-    assert client.get(f"/api/v1/content/{item.id}").status_code == 401
+    assert client.get(f"/api/v1/content/{item.id}").status_code == 200
 
 
 def test_default_habits_are_created_and_logs_persist(client, frozen_clock):
@@ -93,21 +93,21 @@ def test_custom_habit_can_be_added_and_removed(client, frozen_clock):
     assert created["today"]["total"] == 6 and removed["today"]["total"] == 5
 
 
-def test_plus_challenge_requires_active_membership(client, db):
+def test_challenge_marked_plus_can_be_joined_without_membership(client, db, frozen_clock):
     # Arrange
     challenge = Challenge(title="7 días de movimiento", access="plus", target_count=7)
     db.add(challenge)
     db.commit()
-    create_plan(db)
     user = new_user()
-    client.post("/api/v1/subscriptions/requests", json={"plan_code": "plus-mensual"}, headers=user.headers)
 
     # Act
-    response = client.post(f"/api/v1/challenges/{challenge.id}/join", headers=user.headers)
+    joined = client.post(f"/api/v1/challenges/{challenge.id}/join", headers=user.headers)
+    progressed = client.post(f"/api/v1/challenges/{challenge.id}/progress", headers=user.headers)
 
     # Assert
-    assert response.status_code == 403
-    assert response.json()["error"]["code"] == "plus_required"
+    assert joined.status_code == 200 and progressed.status_code == 200
+    item = progressed.json()["challenges"][0]
+    assert "locked" not in item and item["joined"] is True and item["progress"] == 1
 
 
 def test_free_challenge_progress_once_per_day_until_completed(client, db, frozen_clock):
@@ -154,6 +154,26 @@ def test_habit_reward_unlocks_with_weekly_compliance(client, db, frozen_clock):
     assert summary["rewards"][0]["unlocked"] is True
     assert redeemed.status_code == 201
     assert again.status_code == 409
+
+
+def test_reward_marked_plus_can_be_redeemed_without_membership(client, db, frozen_clock):
+    # Arrange
+    reward = Reward(kind="habit_discount", name="10% dcto.", threshold_pct=10, access="plus")
+    db.add(reward)
+    db.commit()
+    user = new_user()
+    habit = client.get("/api/v1/habits", headers=user.headers).json()["today"]["habits"][0]
+    for offset in range(4):
+        client.put(f"/api/v1/habits/{habit['id']}/log",
+                   json={"date": str(TODAY - timedelta(days=offset)), "completed": True}, headers=user.headers)
+
+    # Act
+    summary = client.get("/api/v1/rewards", headers=user.headers).json()
+    redeemed = client.post(f"/api/v1/rewards/{reward.id}/redeem", headers=user.headers)
+
+    # Assert
+    assert summary["rewards"][0]["unlocked"] is True and "access" not in summary["rewards"][0]
+    assert redeemed.status_code == 201
 
 
 def test_admin_fulfills_redemption(client, db, frozen_clock):

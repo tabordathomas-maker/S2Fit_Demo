@@ -86,30 +86,31 @@ def test_admin_cannot_create_routine_for_unknown_user(client, db):
     assert response.status_code == 404
 
 
-# ---- Regla de acceso S2 Plus ----
+# ---- Mi Ruta es gratis: no se exige membresía ----
 
 
-def test_without_plus_list_is_locked_and_detail_is_forbidden(client, db, frozen_clock):
+def test_user_without_membership_has_full_access_to_their_routine(client, db, frozen_clock):
+    # Arrange
     admin = create_admin(db)
     user = _customer(db)
     rid = _routine(client, admin, user)
     step = _step_ids(client, admin, rid)[0]
 
+    # Act
     listing = client.get(f"{API}/routines", headers=user.headers)
     detail = client.get(f"{API}/routines/{rid}", headers=user.headers)
     complete = _complete(client, user, rid, step)
+    undo = client.delete(f"{API}/routines/{rid}/steps/{step}/complete", headers=user.headers)
 
+    # Assert
     assert listing.status_code == 200
     item = listing.json()[0]
-    assert item["locked"] is True and item["title"] == "Piernas" and item["goal"] == "Tonificar"
-    assert item["progress_pct"] == 0 and item["stats"] is None
-    for secret in ("media_url", "cover_url", "instructions", "Instrucciones secretas", "https://cdn"):
-        assert secret not in listing.text
-    assert detail.status_code == 403 and detail.json()["error"]["code"] == "plus_required"
-    assert complete.status_code == 403 and complete.json()["error"]["code"] == "plus_required"
+    assert "locked" not in item and item["title"] == "Piernas" and item["stats"] is not None
+    assert detail.status_code == 200 and detail.json()["steps"][0]["instructions"] is not None
+    assert complete.status_code == 200 and undo.status_code == 200
 
 
-def test_membership_expiry_keeps_progress_and_renewal_continues(client, db, frozen_clock):
+def test_membership_expiry_does_not_affect_the_routine(client, db, frozen_clock):
     admin = create_admin(db)
     user = _customer(db)
     _plus(db, user)
@@ -118,17 +119,13 @@ def test_membership_expiry_keeps_progress_and_renewal_continues(client, db, froz
     assert _complete(client, user, rid, first).status_code == 200
 
     frozen_clock.advance(days=31)
-    locked_list = client.get(f"{API}/routines", headers=user.headers).json()[0]
-    assert client.get(f"{API}/routines/{rid}", headers=user.headers).status_code == 403
-    assert locked_list["locked"] is True and locked_list["progress_pct"] == 33
+    listing = client.get(f"{API}/routines", headers=user.headers).json()[0]
+    detail = client.get(f"{API}/routines/{rid}", headers=user.headers)
 
-    sub = db.scalars(select(Subscription)).one()
-    sub.ends_at = clock.now() + timedelta(days=30)
-    db.commit()
-    renewed = client.get(f"{API}/routines/{rid}", headers=user.headers)
-    assert renewed.status_code == 200
-    assert renewed.json()["stats"]["completed_steps"] == 1
-    assert _states(renewed) == ["done", "current", "locked"]
+    assert listing["progress_pct"] == 33
+    assert detail.status_code == 200
+    assert detail.json()["stats"]["completed_steps"] == 1
+    assert _states(detail) == ["done", "current", "locked"]
 
 
 # ---- Avance ----
@@ -292,22 +289,20 @@ def test_deleting_a_step_renumbers_and_removes_its_completions(client, db, froze
     assert db.scalar(select(func.count()).select_from(RoutineStepCompletion)) == 0
 
 
-def test_admin_list_shows_plus_status_and_progress(client, db, frozen_clock):
+def test_admin_list_shows_progress(client, db, frozen_clock):
     admin = create_admin(db)
-    with_plus, without_plus = _customer(db), _customer(db)
-    _plus(db, with_plus)
-    rid = _routine(client, admin, with_plus)
-    _routine(client, admin, without_plus)
-    _complete(client, with_plus, rid, _step_ids(client, admin, rid)[0])
+    first, second = _customer(db), _customer(db)
+    rid = _routine(client, admin, first)
+    _routine(client, admin, second)
+    _complete(client, first, rid, _step_ids(client, admin, rid)[0])
 
     everything = client.get(f"{API}/admin/routines", headers=admin.headers).json()
-    only_one = client.get(f"{API}/admin/routines?user_id={with_plus.id}", headers=admin.headers).json()
+    only_one = client.get(f"{API}/admin/routines?user_id={first.id}", headers=admin.headers).json()
 
-    by_user = {r["user_id"]: r for r in everything}
-    assert by_user[str(with_plus.id)]["has_plus"] is True and by_user[str(with_plus.id)]["plus_until"] is not None
-    assert by_user[str(without_plus.id)]["has_plus"] is False
+    assert len(everything) == 2
     assert [r["progress_pct"] for r in only_one] == [33]
-    assert only_one[0]["user_email"] == with_plus.email
+    assert only_one[0]["user_email"] == first.email
+    assert "has_plus" not in only_one[0]
 
 
 def test_admin_sees_user_progress_with_notes(client, db, frozen_clock):

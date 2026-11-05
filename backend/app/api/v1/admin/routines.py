@@ -25,19 +25,13 @@ router = APIRouter(tags=["admin: rutinas personalizadas"])
 AdminStepFields = ("title", "instructions", "block_label", "media_url", "cover_url", "duration_minutes", "sets_reps")
 
 
-def _out(db, routine: CustomRoutine, owner: Profile, cache: dict | None = None) -> dict:
-    cache = cache if cache is not None else {}
-    if owner.id not in cache:
-        cache[owner.id] = (routines.user_has_plus(db, owner.id), routines.plus_until(db, owner.id))
-    has_plus, until = cache[owner.id]
+def _out(routine: CustomRoutine, owner: Profile) -> dict:
     _, _, pct = routines.progress(routine)
     return {
         "id": routine.id,
         "user_id": routine.user_id,
         "user_email": owner.email,
         "user_name": owner.full_name,
-        "has_plus": has_plus,
-        "plus_until": until,
         "title": routine.title,
         "description": routine.description,
         "goal": routine.goal,
@@ -51,7 +45,7 @@ def _out(db, routine: CustomRoutine, owner: Profile, cache: dict | None = None) 
 
 def _detail(db, routine: CustomRoutine) -> dict:
     owner = db.get(Profile, routine.user_id)
-    return {**_out(db, routine, owner), "steps": list(routine.steps)}
+    return {**_out(routine, owner), "steps": list(routine.steps)}
 
 
 @router.get("/routines", response_model=list[AdminRoutineOut])
@@ -68,8 +62,7 @@ def list_routines(
         stmt = stmt.where(CustomRoutine.status == status_)
     rows = list(db.scalars(stmt))
     owners = {p.id: p for p in db.scalars(select(Profile).where(Profile.id.in_({r.user_id for r in rows})))}
-    cache: dict = {}
-    return [_out(db, r, owners[r.user_id], cache) for r in rows]
+    return [_out(r, owners[r.user_id]) for r in rows]
 
 
 @router.post("/routines", response_model=AdminRoutineDetail, status_code=status.HTTP_201_CREATED)

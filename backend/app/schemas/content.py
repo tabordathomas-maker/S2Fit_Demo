@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from app.models.enums import AccessLevel, ContentKind
+from app.models.enums import ContentKind
 from app.schemas.common import InputModel, ORMModel
 
 
@@ -11,10 +11,7 @@ class ContentOut(ORMModel):
     summary: str | None
     meta: str | None
     meal_slot: str | None
-    access: str
-    locked: bool
     cover_url: str | None = None
-    # Solo se rellenan cuando la persona tiene acceso.
     body: str | None = None
     media_url: str | None = None
 
@@ -29,7 +26,6 @@ class AdminContentOut(ORMModel):
     cover_url: str | None
     meta: str | None
     meal_slot: str | None
-    access: str
     is_published: bool
     is_demo: bool
     sort_order: int
@@ -44,7 +40,6 @@ class ContentCreate(InputModel):
     cover_url: str | None = Field(default=None, max_length=500, pattern=r"^https://")
     meta: str | None = Field(default=None, max_length=80)
     meal_slot: str | None = Field(default=None, max_length=20)
-    access: AccessLevel = AccessLevel.free
     is_published: bool = True
     sort_order: int = 0
 
@@ -57,6 +52,5 @@ class ContentUpdate(InputModel):
     cover_url: str | None = Field(default=None, max_length=500, pattern=r"^https://")
     meta: str | None = Field(default=None, max_length=80)
     meal_slot: str | None = Field(default=None, max_length=20)
-    access: AccessLevel | None = None
     is_published: bool | None = None
     sort_order: int | None = None

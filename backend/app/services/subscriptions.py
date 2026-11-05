@@ -22,7 +22,7 @@ OPEN_PAYMENT_STATUSES = {PaymentStatus.pending, PaymentStatus.in_review}
 
 
 def has_active_membership(db: Session, user_id: uuid.UUID | None, now: datetime) -> bool:
-    """Única regla de acceso a S2 Plus: suscripción activa y con vencimiento futuro."""
+    """Única regla de acceso a S2 Box: suscripción activa y con vencimiento futuro."""
     if user_id is None:
         return False
     return bool(
@@ -217,13 +217,13 @@ MANUAL_REFERENCE = "MANUAL-ADMIN"
 
 
 def grant_membership(db: Session, user: Profile, days: int, admin: Profile | None, reason: str) -> Subscription:
-    """Activa o extiende S2 Plus a mano (cortesías, pruebas, pagos en efectivo). No crea pagos ni renovaciones.
+    """Activa o extiende S2 Box a mano (cortesías, pruebas, pagos en efectivo). No crea pagos ni renovaciones.
 
     Con `admin=None` (scripts de terminal) no se audita, porque el registro exige un administrador.
     """
     plan = db.scalars(select(Plan).where(Plan.is_active.is_(True)).order_by(Plan.sort_order, Plan.id)).first()
     if plan is None:
-        raise conflict("plans_missing", "Primero crea un plan en Admin → S2 Plus.")
+        raise conflict("plans_missing", "Primero crea un plan en Admin → S2 Box.")
 
     now = clock.now()
     sub = get_user_subscription(db, user.id, lock=True)
@@ -251,7 +251,7 @@ def cancel_membership(db: Session, user: Profile, admin: Profile | None, reason:
     now = clock.now()
     sub = get_user_subscription(db, user.id, lock=True)
     if sub is None or sub.status != SubscriptionStatus.active or sub.ends_at is None or sub.ends_at <= now:
-        raise conflict("no_active_membership", "Esta persona no tiene S2 Plus activa.")
+        raise conflict("no_active_membership", "Esta persona no tiene S2 Box activa.")
     sub.status = SubscriptionStatus.cancelled
     sub.cancelled_at = now
     if admin is not None:

@@ -28,7 +28,7 @@ from app.schemas.subscriptions import (
 )
 from app.services import audit, subscriptions
 
-router = APIRouter(tags=["admin: S2 Plus"])
+router = APIRouter(tags=["admin: S2 Box"])
 
 
 def _present_request(r: SubscriptionRequest) -> dict:
@@ -143,7 +143,7 @@ def cancel_subscription(subscription_id: uuid.UUID, data: SubscriptionCancel, ad
     return _present_subscription(sub)
 
 
-# --- S2 Plus manual (cortesías, pruebas, pagos en efectivo) ---
+# --- S2 Box manual (cortesías, pruebas, pagos en efectivo) ---
 
 
 def _get_user(db: Session, user_id: uuid.UUID) -> Profile:

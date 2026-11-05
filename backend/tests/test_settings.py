@@ -104,16 +104,16 @@ def test_explicit_whatsapp_flag_replaces_number(client, db):
     assert client.get("/api/v1/settings").json()["whatsapp_number"] == "573150001111"
 
 
-def test_content_cover_is_public_but_media_stays_locked(client, db):
+def test_content_marked_plus_is_fully_visible_without_membership(client, db):
     db.add(ContentItem(kind="meal", title="Cena del día", access="plus", cover_url="https://x.supabase.co/c.jpg",
                        media_url="https://x.supabase.co/v.mp4"))
     db.commit()
 
     item = client.get("/api/v1/content", params={"kind": "meal"}).json()[0]
 
-    assert item["locked"] is True
+    assert "locked" not in item
     assert item["cover_url"] == "https://x.supabase.co/c.jpg"
-    assert item["media_url"] is None
+    assert item["media_url"] == "https://x.supabase.co/v.mp4"
 
 
 def test_admin_can_set_content_cover(client, db):

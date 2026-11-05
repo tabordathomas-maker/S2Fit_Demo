@@ -1,4 +1,4 @@
-/** Cómo mostrar un enlace multimedia de Mi Ruta / S2 Plus. */
+/** Cómo mostrar un enlace multimedia de Mi Ruta / S2 Box. */
 export type MediaKind =
   | { type: "embed"; src: string }
   | { type: "video"; src: string }

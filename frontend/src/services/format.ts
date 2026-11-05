@@ -23,7 +23,7 @@ export function formatShortDate(value: string | Date | null | undefined): string
   return `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}`;
 }
 
-/** Estado de S2 Plus en palabras para el panel de administración. */
+/** Estado de S2 Box en palabras para el panel de administración. */
 export function plusStatusText(status: string, endsAt: string | null): string {
   switch (status) {
     case "active":
@@ -35,7 +35,7 @@ export function plusStatusText(status: string, endsAt: string | null): string {
     case "pending_payment":
       return "Pago pendiente";
     default:
-      return "Sin S2 Plus";
+      return "Sin S2 Box";
   }
 }
 

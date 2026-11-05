@@ -86,16 +86,9 @@ function UserLine({ profile }: { profile: Profile }) {
 
 function UserRoutines({ user, onOpen }: { user: Profile; onOpen: (view: View) => void }) {
   const routines = useAsync(() => adminApi.routines(user.id), [user.id]);
-  const active = useAsync(() => adminApi.subscriptions("active"), [user.id]);
-  const sub = active.data?.find((s) => s.user_id === user.id);
 
   return (
     <section className="flex flex-col gap-4">
-      {active.data && (sub ? (
-        <Alert tone="success">S2 Plus activa hasta {formatDateTime(sub.ends_at)}.</Alert>
-      ) : (
-        <Alert tone="info">Esta persona no tiene S2 Plus activa: podrá ver la rutina cuando active o renueve su membresía.</Alert>
-      ))}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-2xl">Rutinas de esta persona</h3>
         <Button variant="dark" onClick={() => onOpen({ kind: "new" })}>Nueva rutina</Button>

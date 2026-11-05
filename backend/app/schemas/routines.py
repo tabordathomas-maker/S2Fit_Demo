@@ -40,17 +40,15 @@ class RoutineStats(ORMModel):
 
 
 class RoutineSummary(ORMModel):
-    """Resumen para la lista. Con `locked` no incluye videos, portadas ni instrucciones."""
+    """Resumen para la lista."""
 
     id: int
     title: str
     goal: str | None
     status: str
-    locked: bool
     progress_pct: int
     completed_steps: int
     total_steps: int
-    # Solo con S2 Plus activa.
     stats: RoutineStats | None = None
 
 
@@ -75,7 +73,6 @@ class RoutineDetail(ORMModel):
     goal: str | None
     status: str
     sequential: bool
-    locked: bool = False
     steps: list[StepOut]
     stats: RoutineStats
 
@@ -106,8 +103,6 @@ class AdminRoutineOut(ORMModel):
     user_id: uuid.UUID
     user_email: str | None
     user_name: str | None
-    has_plus: bool
-    plus_until: datetime | None
     title: str
     description: str | None
     goal: str | None

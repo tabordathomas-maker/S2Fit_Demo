@@ -16,7 +16,7 @@ const TABS = [
   { id: "pagos", label: "Pagos", component: PaymentsAdmin },
   { id: "pedidos", label: "Pedidos", component: OrdersAdmin },
   { id: "catalogo", label: "Catálogo e inventario", component: CatalogAdmin },
-  { id: "plus", label: "S2 Plus", component: MembershipsAdmin },
+  { id: "s2box", label: "S2 Box", component: MembershipsAdmin },
   { id: "contenido", label: "Contenido y retos", component: ContentAdmin },
   { id: "rutinas", label: "Rutinas personalizadas", component: RoutinesAdmin },
   { id: "usuarios", label: "Usuarios y auditoría", component: UsersAdmin },
