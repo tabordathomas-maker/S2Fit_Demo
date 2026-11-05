@@ -1,7 +1,9 @@
+import re
 import uuid
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import Field
+from pydantic import BeforeValidator, Field
 
 from app.schemas.common import InputModel, ORMModel
 
@@ -17,6 +19,7 @@ class PlanOut(ORMModel):
     benefits: list[str]
     is_active: bool
     hide_price: bool = False
+    sort_order: int = 0
 
 
 class AdminPlanOut(PlanOut):
@@ -27,27 +30,39 @@ class AdminPlanOut(PlanOut):
     in_use: bool = False
 
 
+def _clean_name(value: object) -> object:
+    # Se normaliza ANTES de validar el largo: «  S2   Box  » cuenta como «S2 Box».
+    return re.sub(r"\s+", " ", value).strip() if isinstance(value, str) else value
+
+
+PlanName = Annotated[str, BeforeValidator(_clean_name), Field(min_length=2, max_length=80)]
+Benefit = Annotated[str, Field(min_length=1, max_length=120)]
+CODE_PATTERN = r"^[a-z0-9-]{2,40}$"
+
+
 class PlanCreate(InputModel):
-    code: str = Field(pattern=r"^[a-z0-9-]{2,40}$")
-    name: str = Field(min_length=2, max_length=80)
-    description: str | None = Field(default=None, max_length=2000)
+    name: PlanName
+    # Opcional: si no viene, se genera a partir del nombre.
+    code: str | None = Field(default=None, pattern=CODE_PATTERN)
+    description: str | None = Field(default=None, max_length=1000)
     price: int | None = Field(default=None, gt=0, le=50_000_000)
-    duration_days: int = Field(default=30, gt=0, le=3660)
-    period_label: str = Field(default="mensual", min_length=2, max_length=40)
-    benefits: list[str] = Field(default_factory=list, max_length=20)
-    is_active: bool = True
     hide_price: bool = False
+    duration_days: int = Field(default=30, ge=1, le=3650)
+    period_label: str = Field(default="mensual", min_length=1, max_length=40)
+    benefits: list[Benefit] = Field(default_factory=list, max_length=12)
+    is_active: bool = True
     sort_order: int = 0
 
 
 class PlanUpdate(InputModel):
-    name: str | None = Field(default=None, min_length=2, max_length=80)
-    description: str | None = Field(default=None, max_length=2000)
+    name: PlanName | None = None
+    code: str | None = Field(default=None, pattern=CODE_PATTERN)
+    description: str | None = Field(default=None, max_length=1000)
     price: int | None = Field(default=None, gt=0, le=50_000_000)
     clear_price: bool = False
-    duration_days: int | None = Field(default=None, gt=0, le=3660)
-    period_label: str | None = Field(default=None, min_length=2, max_length=40)
-    benefits: list[str] | None = Field(default=None, max_length=20)
+    duration_days: int | None = Field(default=None, ge=1, le=3650)
+    period_label: str | None = Field(default=None, min_length=1, max_length=40)
+    benefits: list[Benefit] | None = Field(default=None, max_length=12)
     is_active: bool | None = None
     hide_price: bool | None = None
     sort_order: int | None = None

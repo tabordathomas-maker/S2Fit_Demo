@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import SessionLocal
-from app.models import Category, Challenge, ContentItem, Plan, Product, ProductVariant, Reward
+from app.models import Category, Challenge, ContentItem, Product, ProductVariant, Reward
 
 CATEGORIES = [
     ("Conjuntos", "conjuntos", "Sets de top + short o legging."),
@@ -37,23 +37,6 @@ PRODUCTS = [
 ]
 SIZES = ["S", "M", "L"]
 DEMO_STOCK = 5
-
-PLAN = {
-    "code": "plus-mensual",
-    "name": "S2 Box mensual",
-    "description": "Una comunidad más personalizada según tus necesidades y objetivos. Constancia que se recompensa de verdad.",
-    "price": None,
-    "duration_days": 30,
-    "period_label": "mensual",
-    "benefits": [
-        "Retos de gym progresivos que suben de nivel contigo",
-        "Rutinas personalizadas según tus necesidades y objetivos",
-        "Comunidad S2 para avanzar acompañada",
-        "Seguimiento de hábitos medido por porcentajes",
-        "Ideas de alimentación diaria",
-        "Recompensas en marcas aliadas",
-    ],
-}
 
 # (tipo, título, meta, acceso, franja de comida)
 CONTENT = [
@@ -121,9 +104,6 @@ def seed(db: Session) -> None:
             for size in SIZES
         ]
         db.add(product)
-
-    if not _exists(db, Plan, code=PLAN["code"]):
-        db.add(Plan(**PLAN))
 
     for i, (kind, title, meta, access, meal_slot) in enumerate(CONTENT):
         if not _exists(db, ContentItem, title=title):

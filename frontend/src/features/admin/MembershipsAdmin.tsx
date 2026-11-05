@@ -4,7 +4,8 @@ import { DeleteDialog } from "../../components/admin/DeleteDialog";
 import { diffPatch } from "../../components/admin/patch";
 import { RowActions } from "../../components/admin/RowActions";
 import { ShowArchivedToggle } from "../../components/admin/ShowArchivedToggle";
-import { Alert, Badge, Button, Field, Pill, Spinner, TextArea } from "../../components/ui";
+import { PlanForm } from "./PlanForm";
+import { Alert, Badge, Button, Field, Pill, Spinner } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatCOP, formatDate, formatDateTime, paymentStatusLabel, plusStatusText, subscriptionStatusLabel } from "../../services/format";
 import { formatPhone } from "../../services/phone";
@@ -46,6 +47,7 @@ function expiryText(left: number): string {
 export function MembershipsAdmin() {
   const [showArchived, setShowArchived] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [creatingPlan, setCreatingPlan] = useState(false);
   const plans = useAsync(() => adminApi.plans(showArchived, showDeleted), [showArchived, showDeleted]);
   const requests = useAsync(() => adminApi.subscriptionRequests("pending_payment"), []);
   const subs = useAsync(() => adminApi.subscriptions(), []);
@@ -83,6 +85,15 @@ export function MembershipsAdmin() {
       setError(errorMessage(err));
       return false;
     }
+  };
+
+  // Para el formulario de planes: lanza el error para que se muestre junto al campo correspondiente.
+  const savePlan = async (fn: () => Promise<unknown>, success: string) => {
+    setError(null);
+    setNotice(null);
+    await fn();
+    setNotice(success);
+    await reloadAll();
   };
 
   const startCancel = (id: string) => {
@@ -230,84 +241,52 @@ export function MembershipsAdmin() {
           <ShowArchivedToggle checked={showDeleted} onChange={setShowDeleted} label="Mostrar eliminados" />
         </div>
         {plans.loading && <Spinner />}
+        {!plans.loading && plans.data?.length === 0 && !creatingPlan && (
+          <div className="card flex flex-col items-start gap-3">
+            <p className="font-bold">Aún no hay planes. Crea el primero.</p>
+            <Button variant="dark" onClick={() => setCreatingPlan(true)}>Crear plan</Button>
+          </div>
+        )}
+        {!creatingPlan && (plans.data?.length ?? 0) > 0 && <Button className="self-start" variant="dark" onClick={() => setCreatingPlan(true)}>Nuevo plan</Button>}
+        {creatingPlan && (
+          <PlanForm
+            mode="create"
+            onCancel={() => setCreatingPlan(false)}
+            onSubmit={async (body) => {
+              await savePlan(() => adminApi.createPlan(body), "Plan creado.");
+              setCreatingPlan(false);
+            }}
+          />
+        )}
         <div className="grid gap-4 lg:grid-cols-2">
-          {plans.data?.map((p) => <PlanEditor key={p.id} plan={p} run={run} onDelete={() => setDeleting({ kind: "plan", id: String(p.id), name: p.name, usage: p.usage })} />)}
-          <NewPlanForm run={run} />
+          {plans.data?.map((p) => (
+            <PlanForm
+              key={p.id}
+              mode="edit"
+              plan={p}
+              codeLocked={planHasHistory(p)}
+              onSubmit={(body) => savePlan(() => adminApi.updatePlan(p.id, body), "Plan actualizado.")}
+              actions={
+                <RowActions
+                  name={p.name}
+                  archived={!p.is_active}
+                  onArchive={() => void run(() => adminApi.archivePlan(p.id), "Plan archivado: ya no se ofrece en S2 Box.")}
+                  onRestore={() => void run(() => adminApi.restorePlan(p.id), "Plan restaurado.")}
+                  onDelete={() => setDeleting({ kind: "plan", id: String(p.id), name: p.name, usage: p.usage })}
+                />
+              }
+            />
+          ))}
         </div>
       </section>
     </div>
   );
 }
 
-function benefitsFrom(text: string): string[] {
-  return text.split("\n").map((b) => b.trim()).filter(Boolean);
-}
-
-function PlanEditor({ plan, run, onDelete }: { plan: Plan; run: (fn: () => Promise<unknown>, success?: string) => Promise<boolean>; onDelete: () => void }) {
-  const [form, setForm] = useState({
-    name: plan.name,
-    price: plan.price ? String(plan.price) : "",
-    duration_days: String(plan.duration_days),
-    period_label: plan.period_label,
-    description: plan.description ?? "",
-    benefits: plan.benefits.join("\n"),
-    hide_price: plan.hide_price ?? false,
-  });
-  const save = (e: FormEvent) => {
-    e.preventDefault();
-    // Solo se envía lo que cambió.
-    const changes = diffPatch(
-      { name: plan.name, price: plan.price, duration_days: plan.duration_days, period_label: plan.period_label, description: plan.description, benefits: plan.benefits, hide_price: plan.hide_price ?? false },
-      {
-        name: form.name,
-        price: form.price ? Number(form.price) : null,
-        duration_days: Number(form.duration_days),
-        period_label: form.period_label,
-        description: form.description || null,
-        benefits: benefitsFrom(form.benefits),
-        hide_price: form.hide_price,
-      },
-    );
-    if (Object.keys(changes).length === 0) return;
-    const { price, ...rest } = changes;
-    const body: Record<string, unknown> = { ...rest };
-    if ("price" in changes) {
-      if (price === null) body.clear_price = true;
-      else body.price = price;
-    }
-    void run(() => adminApi.updatePlan(plan.id, body), "Plan actualizado.");
-  };
-  return (
-    <form onSubmit={save} className="card flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-sm">{plan.code}</span>
-        <Badge tone={plan.is_active ? "green" : "gray"}>{plan.deleted_at ? "Eliminado" : plan.is_active ? "Activo" : "Archivado"}</Badge>
-      </div>
-      <Field label="Nombre" id={`pn-${plan.id}`} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-      <Field label="Precio (COP)" id={`pp-${plan.id}`} type="number" min={1} value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })}
-        hint="Déjalo vacío para mostrar «Consulta el precio por WhatsApp»." />
-      <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" className="mt-1 h-4 w-4 accent-burgundy" checked={form.hide_price} onChange={(e) => setForm({ ...form, hide_price: e.target.checked })} />
-        <span>Ocultar el precio al público (se muestra «Precio por confirmar»). Tú lo sigues viendo aquí.</span>
-      </label>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Vigencia (días)" id={`pd-${plan.id}`} type="number" min={1} value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} />
-        <Field label="Periodicidad" id={`pl-${plan.id}`} value={form.period_label} onChange={(e) => setForm({ ...form, period_label: e.target.value })} />
-      </div>
-      <TextArea label="Descripción" id={`pdesc-${plan.id}`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-      <TextArea label="Beneficios (uno por línea)" id={`pb-${plan.id}`} value={form.benefits} onChange={(e) => setForm({ ...form, benefits: e.target.value })} />
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" variant="dark">Guardar plan</Button>
-        <RowActions
-          name={plan.name}
-          archived={!plan.is_active}
-          onArchive={() => void run(() => adminApi.archivePlan(plan.id), "Plan archivado: ya no se ofrece en S2 Box.")}
-          onRestore={() => void run(() => adminApi.restorePlan(plan.id), "Plan restaurado.")}
-          onDelete={onDelete}
-        />
-      </div>
-    </form>
-  );
+/** Hay solicitudes o suscripciones (de cualquier estado) que usan el plan: su código ya no se puede cambiar. */
+function planHasHistory(plan: Plan): boolean {
+  const counts = [...Object.values(plan.usage?.live ?? {}), ...Object.values(plan.usage?.historical ?? {})];
+  return counts.some((n) => n > 0);
 }
 
 function RequestTermsForm({ request, onSave, onCancel }: {
@@ -353,24 +332,6 @@ function SubscriptionDatesForm({ sub, onSave, onCancel }: {
       <Field label="Inicio" id={`sd-start-${sub.id}`} type="date" required value={starts} onChange={(e) => setStarts(e.target.value)} />
       <Field label="Vence" id={`sd-end-${sub.id}`} type="date" required value={ends} onChange={(e) => setEnds(e.target.value)} />
       <div className="flex gap-2"><Button type="submit" variant="dark">Guardar fechas</Button><Button onClick={onCancel}>Cancelar</Button></div>
-    </form>
-  );
-}
-
-function NewPlanForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<boolean> }) {
-  const [form, setForm] = useState({ code: "", name: "", duration_days: "30" });
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    const ok = await run(() => adminApi.createPlan({ code: form.code, name: form.name, duration_days: Number(form.duration_days) }));
-    if (ok) setForm({ code: "", name: "", duration_days: "30" });
-  };
-  return (
-    <form onSubmit={submit} className="card flex flex-col gap-3 border-2 border-dashed border-beige">
-      <h4 className="font-display text-lg">Nuevo plan</h4>
-      <Field label="Código" id="np-code" required pattern="[a-z0-9-]{2,40}" placeholder="plus-trimestral" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-      <Field label="Nombre" id="np-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-      <Field label="Vigencia (días)" id="np-days" type="number" min={1} value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} />
-      <Button type="submit" variant="dark" className="self-start">Crear plan</Button>
     </form>
   );
 }

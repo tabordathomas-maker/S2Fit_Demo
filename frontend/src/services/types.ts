@@ -119,6 +119,7 @@ export interface Plan {
   benefits: string[];
   is_active: boolean;
   hide_price?: boolean;
+  sort_order?: number;
   deleted_at?: string | null;
   usage?: { live: Record<string, number>; historical: Record<string, number> };
   in_use?: boolean;

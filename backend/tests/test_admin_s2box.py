@@ -40,7 +40,7 @@ def test_patch_plan_rejects_extra_and_invalid_fields(client, db):
     url = f"{BASE}/plans/{plan.id}"
 
     # Act / Assert
-    assert client.patch(url, json={"code": "otro"}, headers=admin.headers).status_code == 422
+    assert client.patch(url, json={"slug": "otro"}, headers=admin.headers).status_code == 422
     assert client.patch(url, json={"duration_days": 0}, headers=admin.headers).status_code == 422
     assert client.patch(url, json={"price": -5}, headers=admin.headers).status_code == 422
 

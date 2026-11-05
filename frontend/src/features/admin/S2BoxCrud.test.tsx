@@ -37,7 +37,7 @@ describe("MembershipsAdmin · CRUD de S2 Box", () => {
     renderWithProviders(<MembershipsAdmin />);
 
     const price = await screen.findByLabelText("Precio (COP)");
-    expect(price).toHaveValue(60000);
+    expect(price).toHaveValue("60.000");
     expect(screen.getByLabelText("Nombre", { selector: "#pn-1" })).toHaveValue("S2 Box mensual");
     await userEvent.clear(price);
     await userEvent.type(price, "70000");

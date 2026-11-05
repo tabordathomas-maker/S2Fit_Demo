@@ -29,7 +29,7 @@ from app.schemas.subscriptions import (
     SubscriptionRequestUpdate,
     SubscriptionUpdate,
 )
-from app.services import archive, audit, s2box_admin, subscriptions
+from app.services import archive, audit, plans, s2box_admin, subscriptions
 from app.services.usage import plan_usage
 
 router = APIRouter(tags=["admin: S2 Box"])
@@ -73,10 +73,7 @@ def list_plans(_: AdminUser, db: DbSession, include_archived: bool = False, incl
 
 @router.post("/plans", response_model=PlanOut, status_code=status.HTTP_201_CREATED)
 def create_plan(data: PlanCreate, admin: AdminUser, db: DbSession):
-    plan = Plan(**data.model_dump())
-    db.add(plan)
-    db.flush()
-    audit.record(db, admin, "plan.create", "plan", plan.id, data.model_dump())
+    plan = plans.create_plan(db, admin, data)
     db.commit()
     return plan
 

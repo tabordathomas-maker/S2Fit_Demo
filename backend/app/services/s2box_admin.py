@@ -12,6 +12,7 @@ from app.models import Payment, Plan, Profile, Subscription, SubscriptionRenewal
 from app.models.enums import PaymentStatus, SubscriptionRequestStatus, SubscriptionStatus
 from app.schemas.subscriptions import PlanUpdate, SubscriptionRequestUpdate, SubscriptionUpdate
 from app.services import archive, audit, subscriptions
+from app.services import plans as plans_service
 from app.services.usage import plan_usage
 
 
@@ -27,6 +28,16 @@ def update_plan(db: Session, admin: Profile, plan_id: int, data: PlanUpdate) -> 
     changes = data.model_dump(exclude_unset=True, exclude={"clear_price"})
     if data.clear_price:
         changes["price"] = None
+    for key in ("name", "duration_days", "period_label", "benefits", "is_active", "hide_price", "sort_order", "code"):
+        if key in changes and changes[key] is None:
+            changes.pop(key)
+    if "name" in changes and changes["name"] != plan.name:
+        plans_service.ensure_name_free(db, changes["name"], exclude_id=plan.id)
+    if "code" in changes and changes["code"] != plan.code:
+        if plans_service.has_history(db, plan.id):
+            raise conflict("PLAN_CODE_LOCKED", "El código no se puede cambiar porque el plan ya tiene historial.")
+        if plans_service.code_taken(db, changes["code"]):
+            raise conflict("PLAN_CODE_TAKEN", f"Ya existe un plan con el código «{changes['code']}».")
     archive.apply_update(db, admin, plan, "plan", plan.id, changes)
     return plan
 
