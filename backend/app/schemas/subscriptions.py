@@ -128,3 +128,17 @@ class MembershipOut(ORMModel):
     starts_at: datetime | None
     ends_at: datetime | None
     is_active: bool
+
+
+class SubscriptionRequestUpdate(InputModel):
+    """Corrige el precio o la vigencia acordados de una solicitud pendiente."""
+
+    agreed_price: int | None = Field(default=None, gt=0, le=50_000_000)
+    agreed_duration_days: int | None = Field(default=None, gt=0, le=3660)
+
+
+class SubscriptionUpdate(InputModel):
+    """Corrige las fechas de una membresía activa."""
+
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None

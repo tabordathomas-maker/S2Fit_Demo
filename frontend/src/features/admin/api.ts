@@ -226,7 +226,14 @@ export const adminApi = {
   updateSettings: (whatsapp_number: string | null) =>
     apiFetch<AdminSettings>(`${A}/settings`, { method: "PUT", body: { whatsapp_number } }),
 
-  plans: () => apiFetch<Plan[]>(`${A}/plans`),
+  plans: (includeArchived = false) => apiFetch<Plan[]>(`${A}/plans`, { query: { include_archived: includeArchived ? "true" : undefined } }),
+  archivePlan: (id: number) => post<Plan>(`/plans/${id}/archive`),
+  restorePlan: (id: number) => post<Plan>(`/plans/${id}/restore`),
+  deletePlan: (id: number) => apiFetch<void>(`${A}/plans/${id}`, { method: "DELETE" }),
+  updateSubscriptionRequest: (id: string, body: { agreed_price?: number; agreed_duration_days?: number }) =>
+    patch<AdminSubscriptionRequest>(`/subscription-requests/${id}`, body),
+  deleteSubscriptionRequest: (id: string) => apiFetch<void>(`${A}/subscription-requests/${id}`, { method: "DELETE" }),
+  updateSubscription: (id: string, body: { starts_at?: string; ends_at?: string }) => patch<AdminSubscription>(`/subscriptions/${id}`, body),
   createPlan: (body: Record<string, unknown>) => post<Plan>("/plans", body),
   updatePlan: (id: number, body: Record<string, unknown>) => patch<Plan>(`/plans/${id}`, body),
   subscriptionRequests: (status?: string) => apiFetch<AdminSubscriptionRequest[]>(`${A}/subscription-requests`, { query: { status } }),

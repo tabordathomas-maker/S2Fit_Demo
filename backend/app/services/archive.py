@@ -1,5 +1,7 @@
 """Piezas comunes del CRUD de administración: archivar/restaurar, eliminar con referencias y auditoría de cambios."""
 
+import uuid
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -7,6 +9,10 @@ from sqlalchemy.orm import Session
 from app.core.errors import resource_in_use
 from app.models import Profile
 from app.services import audit
+
+
+def _jsonable(value: Any) -> Any:
+    return value.isoformat() if isinstance(value, (datetime, date)) else str(value) if isinstance(value, uuid.UUID) else value
 
 
 def changed_fields(obj: object, changes: dict[str, Any]) -> dict[str, Any]:
@@ -17,12 +23,13 @@ def changed_fields(obj: object, changes: dict[str, Any]) -> dict[str, Any]:
 def apply_update(db: Session, admin: Profile, obj: object, entity_type: str, entity_id: object, changes: dict[str, Any]) -> dict:
     """Aplica un PATCH parcial y lo audita con los campos modificados (antes y después)."""
     real = changed_fields(obj, changes)
-    before = {field: getattr(obj, field) for field in real}
+    before = {field: _jsonable(getattr(obj, field)) for field in real}
     for field, value in real.items():
         setattr(obj, field, value)
     if real:
         audit.record(db, admin, f"{entity_type}.update", entity_type, entity_id,
-                     {"changed_fields": sorted(real), "before": before, "after": real})
+                     {"changed_fields": sorted(real), "before": before,
+                      "after": {field: _jsonable(value) for field, value in real.items()}})
     return real
 
 
