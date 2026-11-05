@@ -185,7 +185,13 @@ export const adminApi = {
   orders: (status?: string, q?: string) => apiFetch<AdminOrder[]>(`${A}/orders`, { query: { status, q } }),
   expireReservations: () => post<{ expired_orders: number }>("/orders/expire-reservations"),
   renewReservation: (id: string) => post<AdminOrder>(`/orders/${id}/renew-reservation`),
-  cancelOrder: (id: string, reason: string) => post<AdminOrder>(`/orders/${id}/cancel`, { reason }),
+  order: (id: string) => apiFetch<AdminOrder>(`${A}/orders/${id}`),
+  updateOrder: (id: string, body: { customer_note?: string | null; items?: { variant_id: number; quantity: number }[] }) =>
+    patch<AdminOrder>(`/orders/${id}`, body),
+  deleteOrder: (id: string) => apiFetch<void>(`${A}/orders/${id}`, { method: "DELETE" }),
+  cancelOrder: (id: string, reason?: string) => post<AdminOrder>(`/orders/${id}/cancel`, reason ? { reason } : {}),
+  updatePayment: (id: string, body: { amount?: number; admin_notes?: string | null }) => patch<AdminPayment>(`/payments/${id}`, body),
+  deletePayment: (id: string) => apiFetch<void>(`${A}/payments/${id}`, { method: "DELETE" }),
 
   categories: () => apiFetch<Category[]>(`${A}/categories`),
   createCategory: (body: { name: string; slug: string }) => post<Category>("/categories", body),

@@ -26,6 +26,11 @@ def conflict(code: str, message: str, details: dict | None = None) -> AppError:
     return AppError(409, code, message, details)
 
 
+def resource_in_use(message: str, details: dict | None = None) -> AppError:
+    """409 estándar al eliminar algo que otros registros todavía referencian."""
+    return AppError(409, "RESOURCE_IN_USE", message, details)
+
+
 def forbidden(code: str = "forbidden", message: str = "No tienes permiso para esta acción.") -> AppError:
     return AppError(403, code, message)
 

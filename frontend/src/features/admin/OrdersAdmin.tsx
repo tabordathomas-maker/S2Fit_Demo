@@ -1,16 +1,27 @@
 import { useState } from "react";
 
-import { Alert, Badge, Button, Select, Spinner } from "../../components/ui";
+import { ConfirmDialog } from "../../components/admin/ConfirmDialog";
+import { DeleteDialog } from "../../components/admin/DeleteDialog";
+import { RowActions } from "../../components/admin/RowActions";
+import { Alert, Badge, Button, Select, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatCOP, formatDateTime, orderStatusLabel, paymentStatusLabel } from "../../services/format";
 import { useAsync } from "../../services/useAsync";
 import { adminApi, type AdminOrder } from "./api";
+import { OrderEditor } from "./OrderEditor";
+
+/** Un pedido solo se elimina si no tiene pago confirmado. */
+const DELETABLE = new Set(["pending_payment", "cancelled", "expired"]);
 
 export function OrdersAdmin() {
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
   const orders = useAsync(() => adminApi.orders(status || undefined, q || undefined), [status, q]);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<AdminOrder | null>(null);
+  const [cancelling, setCancelling] = useState<AdminOrder | null>(null);
+  const [reason, setReason] = useState("");
 
   const run = async (fn: () => Promise<unknown>, success: string) => {
     setMessage(null);
@@ -30,9 +41,13 @@ export function OrdersAdmin() {
     }, "");
 
   const renew = (o: AdminOrder) => run(() => adminApi.renewReservation(o.id), `Reserva de ${o.reference} renovada.`);
-  const cancel = (o: AdminOrder) => {
-    const reason = window.prompt(`Motivo para cancelar ${o.reference}:`);
-    if (reason && reason.trim().length >= 3) void run(() => adminApi.cancelOrder(o.id, reason.trim()), `Pedido ${o.reference} cancelado.`);
+  const confirmCancel = async () => {
+    const order = cancelling;
+    if (!order) return;
+    const text = reason.trim();
+    setCancelling(null);
+    setReason("");
+    await run(() => adminApi.cancelOrder(order.id, text || undefined), `Pedido ${order.reference} cancelado.`);
   };
 
   return (
@@ -73,13 +88,55 @@ export function OrdersAdmin() {
               {(o.status === "pending_payment" || o.status === "expired") && (
                 <div className="flex flex-wrap gap-2">
                   {(expired || o.status === "expired") && <Button variant="dark" onClick={() => renew(o)}>Renovar reserva</Button>}
-                  <Button onClick={() => cancel(o)}>Cancelar pedido</Button>
+                  <Button aria-label={`Cancelar pedido ${o.reference}`} onClick={() => setCancelling(o)}>Cancelar pedido</Button>
                 </div>
+              )}
+              {editing === o.id ? (
+                <OrderEditor
+                  order={o}
+                  onClose={() => setEditing(null)}
+                  onSaved={async () => {
+                    setEditing(null);
+                    setMessage({ tone: "success", text: `Pedido ${o.reference} actualizado.` });
+                    await orders.reload();
+                  }}
+                />
+              ) : (
+                <RowActions
+                  name={o.reference}
+                  onEdit={() => setEditing(o.id)}
+                  onDelete={DELETABLE.has(o.status) ? () => setDeleting(o) : undefined}
+                />
               )}
             </li>
           );
         })}
       </ul>
+      <DeleteDialog
+        target={deleting ? { name: deleting.reference } : null}
+        noun="pedido"
+        remove={() => adminApi.deleteOrder(deleting!.id)}
+        onClose={() => setDeleting(null)}
+        onDone={() => {
+          setMessage({ tone: "success", text: `Pedido ${deleting?.reference} eliminado y su reserva liberada.` });
+          setDeleting(null);
+          void orders.reload();
+        }}
+      />
+      <ConfirmDialog
+        open={cancelling !== null}
+        title="Cancelar pedido"
+        confirmLabel="Cancelar pedido"
+        cancelLabel="Volver"
+        message={
+          <div className="flex flex-col gap-3">
+            <p>Se cancelará {cancelling?.reference} y se liberará su reserva de inventario.</p>
+            <TextArea label="Motivo (opcional)" id="cancel-reason" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
+        }
+        onConfirm={() => void confirmCancel()}
+        onCancel={() => { setCancelling(null); setReason(""); }}
+      />
     </div>
   );
 }

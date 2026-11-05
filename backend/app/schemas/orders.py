@@ -58,3 +58,10 @@ class AdminOrderOut(OrderOut):
     user_id: uuid.UUID
     customer_email: str | None = None
     customer_name: str | None = None
+
+
+class AdminOrderUpdate(InputModel):
+    """Edición parcial de un pedido. Los ítems reemplazan la lista completa (variante y cantidad)."""
+
+    customer_note: str | None = Field(default=None, max_length=500)
+    items: list[OrderLineIn] | None = Field(default=None, min_length=1, max_length=20)

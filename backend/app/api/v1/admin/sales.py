@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response, status as http_status
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -15,15 +15,15 @@ from app.models import Order, Payment
 from app.models.enums import OrderStatus, PaymentStatus
 from app.schemas.admin import ExpiredSweepResult
 from app.schemas.common import InputModel
-from app.schemas.orders import AdminOrderOut, OrderOut
-from app.schemas.payments import AdminPaymentOut, PaymentConfirm, PaymentReject, PaymentRefund, PaymentReview
+from app.schemas.orders import AdminOrderOut, AdminOrderUpdate, OrderOut
+from app.schemas.payments import AdminPaymentOut, PaymentConfirm, PaymentReject, PaymentRefund, PaymentReview, PaymentUpdate
 from app.services import audit, inventory, orders, payments, subscriptions
 
 router = APIRouter(tags=["admin: ventas y pagos"])
 
 
 class OrderCancel(InputModel):
-    reason: str = Field(min_length=3, max_length=500)
+    reason: str | None = Field(default=None, min_length=3, max_length=500)
 
 
 def _present_order(order: Order) -> dict:
@@ -115,6 +115,32 @@ def renew_reservation(order_id: uuid.UUID, admin: AdminUser, db: DbSession):
     return _present_order(order)
 
 
+@router.get("/orders/{order_id}", response_model=AdminOrderOut)
+def get_order(order_id: uuid.UUID, _: AdminUser, db: DbSession):
+    order = db.scalars(
+        select(Order).where(Order.id == order_id)
+        .options(selectinload(Order.items), selectinload(Order.payment), selectinload(Order.user))
+    ).one_or_none()
+    if order is None:
+        raise not_found("El pedido no existe.")
+    return _present_order(order)
+
+
+@router.patch("/orders/{order_id}", response_model=AdminOrderOut)
+def update_order(order_id: uuid.UUID, data: AdminOrderUpdate, admin: AdminUser, db: DbSession):
+    order = orders.admin_update_order(db, order_id, admin, data)
+    db.commit()
+    db.refresh(order)
+    return _present_order(order)
+
+
+@router.delete("/orders/{order_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_order(order_id: uuid.UUID, admin: AdminUser, db: DbSession):
+    orders.admin_delete_order(db, order_id, admin)
+    db.commit()
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/orders/{order_id}/cancel", response_model=AdminOrderOut)
 def cancel_order(order_id: uuid.UUID, data: OrderCancel, admin: AdminUser, db: DbSession):
     order = orders.admin_cancel_order(db, order_id, admin, clock.now(), data.reason)
@@ -167,3 +193,17 @@ def refund_payment(payment_id: uuid.UUID, data: PaymentRefund, admin: AdminUser,
     payments.refund(db, payment_id, admin, data, clock.now())
     db.commit()
     return _load_payment(db, payment_id)
+
+
+@router.patch("/payments/{payment_id}", response_model=AdminPaymentOut)
+def update_payment(payment_id: uuid.UUID, data: PaymentUpdate, admin: AdminUser, db: DbSession):
+    payments.admin_update_payment(db, payment_id, admin, data)
+    db.commit()
+    return _load_payment(db, payment_id)
+
+
+@router.delete("/payments/{payment_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_payment(payment_id: uuid.UUID, admin: AdminUser, db: DbSession):
+    payments.admin_delete_payment(db, payment_id, admin)
+    db.commit()
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)

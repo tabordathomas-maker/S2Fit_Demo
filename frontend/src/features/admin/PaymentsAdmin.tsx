@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
+import { DeleteDialog } from "../../components/admin/DeleteDialog";
+import { diffPatch } from "../../components/admin/patch";
+import { RowActions } from "../../components/admin/RowActions";
 import { Alert, Badge, Button, Field, Pill, Select, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatCOP, formatDateTime, formatShortDate, paymentMethodLabel, paymentStatusLabel } from "../../services/format";
@@ -67,12 +70,14 @@ function PaymentRow({ payment: p, onChanged, onConfirmed }: {
 }) {
   const open = p.status === "pending" || p.status === "in_review";
   const needsTerms = p.kind === "subscription" && open && p.amount === null;
-  const [mode, setMode] = useState<"none" | "confirm" | "reject" | "review" | "refund" | "terms">(needsTerms ? "terms" : "none");
+  const [mode, setMode] = useState<"none" | "confirm" | "reject" | "review" | "refund" | "terms" | "edit">(needsTerms ? "terms" : "none");
   const [error, setError] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (error) errorRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
   }, [error]);
+  const [deleting, setDeleting] = useState(false);
+  const deletable = p.status !== "confirmed" && p.status !== "refunded";
   const reservationExpired = p.reservation_expires_at !== null && new Date(p.reservation_expires_at) < new Date();
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -130,6 +135,9 @@ function PaymentRow({ payment: p, onChanged, onConfirmed }: {
         {open && <Button onClick={() => setMode("reject")}>Rechazar</Button>}
         {p.status === "confirmed" && <Button onClick={() => setMode("refund")}>Registrar reembolso</Button>}
       </div>
+      {mode !== "edit" && (
+        <RowActions name={p.operation_reference} onEdit={open ? () => setMode("edit") : undefined} onDelete={deletable ? () => setDeleting(true) : undefined} />
+      )}
       {needsTerms && <p className="text-sm font-bold text-burgundy">Primero registra el precio acordado.</p>}
       {open && p.status === "pending" && (
         <p className="text-sm text-muted">«Marcar en revisión» solo marca que lo estás revisando; no activa la membresía ni el pedido.</p>
@@ -139,6 +147,16 @@ function PaymentRow({ payment: p, onChanged, onConfirmed }: {
       {mode === "terms" && p.subscription_request_id && (
         <TermsForm onCancel={() => setMode("none")} onSubmit={(price, days) => run(() => adminApi.setTerms(p.subscription_request_id!, price, days))} />
       )}
+      {mode === "edit" && (
+        <EditForm payment={p} onCancel={() => setMode("none")} onSubmit={(body) => run(() => adminApi.updatePayment(p.id, body))} />
+      )}
+      <DeleteDialog
+        target={deleting ? { name: p.operation_reference } : null}
+        noun="pago"
+        remove={() => adminApi.deletePayment(p.id)}
+        onClose={() => setDeleting(false)}
+        onDone={() => { setDeleting(false); void onChanged(); }}
+      />
       {mode === "confirm" && <ConfirmForm payment={p} onCancel={() => setMode("none")} onSubmit={(body) => confirm(body)} />}
       {mode === "review" && (
         <NotesForm label="Notas de revisión" withMethod submitLabel="Guardar" onCancel={() => setMode("none")}
@@ -153,6 +171,27 @@ function PaymentRow({ payment: p, onChanged, onConfirmed }: {
           onSubmit={(notes) => run(() => adminApi.refundPayment(p.id, notes))} />
       )}
     </li>
+  );
+}
+
+function EditForm({ payment, onSubmit, onCancel }: {
+  payment: AdminPayment; onSubmit: (body: { amount?: number; admin_notes?: string | null }) => void; onCancel: () => void;
+}) {
+  const initial = { amount: payment.amount ?? 0, admin_notes: payment.admin_notes ?? "" };
+  const [amount, setAmount] = useState(String(initial.amount || ""));
+  const [notes, setNotes] = useState(initial.admin_notes);
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const changes = diffPatch(initial, { amount: Number(amount), admin_notes: notes.trim() });
+    if (Object.keys(changes).length === 0) return onCancel();
+    onSubmit({ ...("amount" in changes ? { amount: changes.amount } : {}), ...("admin_notes" in changes ? { admin_notes: changes.admin_notes || null } : {}) });
+  };
+  return (
+    <form onSubmit={submit} aria-label={`Editar ${payment.operation_reference}`} className="grid gap-3 rounded-2xl bg-cream p-4 sm:grid-cols-2">
+      <Field label="Importe (COP)" id={`edit-amount-${payment.id}`} type="number" min={1} required value={amount} onChange={(e) => setAmount(e.target.value)} />
+      <TextArea label="Observaciones" id={`edit-notes-${payment.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} />
+      <div className="flex gap-2 sm:col-span-2"><Button type="submit" variant="dark">Guardar cambios</Button><Button onClick={onCancel}>Cancelar</Button></div>
+    </form>
   );
 }
 

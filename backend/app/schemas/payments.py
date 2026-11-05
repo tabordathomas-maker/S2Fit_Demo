@@ -58,3 +58,10 @@ class PaymentReject(InputModel):
 
 class PaymentRefund(InputModel):
     admin_notes: str = Field(min_length=3, max_length=2000)
+
+
+class PaymentUpdate(InputModel):
+    """Edición parcial de un pago pendiente (monto o nota)."""
+
+    amount: int | None = Field(default=None, gt=0, le=50_000_000)
+    admin_notes: str | None = Field(default=None, max_length=2000)

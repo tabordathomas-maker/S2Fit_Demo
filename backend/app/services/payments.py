@@ -22,7 +22,7 @@ from app.models.enums import (
     SubscriptionRequestStatus,
     SubscriptionStatus,
 )
-from app.schemas.payments import PaymentConfirm, PaymentReject, PaymentRefund, PaymentReview
+from app.schemas.payments import PaymentConfirm, PaymentReject, PaymentRefund, PaymentReview, PaymentUpdate
 from app.services import audit, inventory, orders, subscriptions
 from app.services.whatsapp import format_cop
 
@@ -202,3 +202,35 @@ def refund(db: Session, payment_id: uuid.UUID, admin: Profile, data: PaymentRefu
 
 def list_user_payments(db: Session, user: Profile) -> list[Payment]:
     return list(db.scalars(payment_query().where(Payment.user_id == user.id).order_by(Payment.created_at.desc())))
+
+
+def _locked_message(payment: Payment) -> str:
+    return ("Un pago confirmado no se edita ni se elimina; si hubo un error, regístralo como reembolso."
+            if payment.status in (PaymentStatus.confirmed, PaymentStatus.refunded)
+            else f"Este pago ya fue procesado (estado: {payment.status}).")
+
+
+def admin_update_payment(db: Session, payment_id: uuid.UUID, admin: Profile, data: PaymentUpdate) -> Payment:
+    payment, _, _ = _lock_target(db, payment_id)
+    if payment.status not in OPEN_STATUSES:
+        raise conflict("PAYMENT_LOCKED", _locked_message(payment), {"status": payment.status})
+    changes = {k: v for k, v in data.model_dump(exclude_unset=True).items() if getattr(payment, k) != v}
+    for field, value in changes.items():
+        setattr(payment, field, value)
+    if changes:
+        audit.record(db, admin, "payment.update", "payment", payment.id,
+                     {"changed_fields": sorted(changes), **changes})
+    return payment
+
+
+def admin_delete_payment(db: Session, payment_id: uuid.UUID, admin: Profile) -> None:
+    payment, order, request = _lock_target(db, payment_id)
+    if payment.status in (PaymentStatus.confirmed, PaymentStatus.refunded):
+        raise conflict("PAYMENT_LOCKED", _locked_message(payment), {"status": payment.status})
+    if order is not None and order.status == OrderStatus.pending_payment:
+        raise conflict("ORDER_LOCKED", "Este pago pertenece a un pedido pendiente. Cancela o elimina el pedido primero.")
+    if request is not None and request.status == SubscriptionRequestStatus.pending_payment:
+        raise conflict("PAYMENT_LOCKED", "Este pago pertenece a una solicitud pendiente. Cancela la solicitud primero.")
+    audit.record(db, admin, "payment.delete", "payment", payment.id,
+                 {"kind": payment.kind, "status": payment.status, "amount": payment.amount})
+    db.delete(payment)
