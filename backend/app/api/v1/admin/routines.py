@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 from sqlalchemy import func, select
 
 from app.api.deps import AdminUser, DbSession
@@ -54,12 +54,15 @@ def list_routines(
     db: DbSession,
     user_id: uuid.UUID | None = None,
     status_: Annotated[RoutineStatus | None, Query(alias="status")] = None,
+    include_archived: bool = False,
 ):
     stmt = routines.routine_query().order_by(CustomRoutine.created_at.desc(), CustomRoutine.id.desc())
     if user_id:
         stmt = stmt.where(CustomRoutine.user_id == user_id)
     if status_:
         stmt = stmt.where(CustomRoutine.status == status_)
+    elif not include_archived:
+        stmt = stmt.where(CustomRoutine.status != RoutineStatus.archived)
     rows = list(db.scalars(stmt))
     owners = {p.id: p for p in db.scalars(select(Profile).where(Profile.id.in_({r.user_id for r in rows})))}
     return [_out(r, owners[r.user_id]) for r in rows]
@@ -85,20 +88,32 @@ def get_routine(routine_id: int, _: AdminUser, db: DbSession):
 @router.patch("/routines/{routine_id}", response_model=AdminRoutineDetail)
 def update_routine(routine_id: int, data: RoutineUpdate, admin: AdminUser, db: DbSession):
     routine = routines.load_routine(db, routine_id)
-    changes = data.model_dump(exclude_unset=True)
-    if changes.get("title") is None:
-        changes.pop("title", None)
-    if changes.get("sequential") is None:
-        changes.pop("sequential", None)
-    if changes.get("status") is None:
-        changes.pop("status", None)
-    if changes.get("status") == RoutineStatus.active:
-        routines.validate_activation(routine)
-    for field, value in changes.items():
-        setattr(routine, field, value)
-    audit.record(db, admin, "routine.update", "routine", routine.id, {k: str(v) for k, v in changes.items()})
+    routines.admin_update(db, admin, routine, data.model_dump(exclude_unset=True))
     db.commit()
-    return _detail(db, routine)
+    return _detail(db, routines.load_routine(db, routine_id))
+
+
+@router.post("/routines/{routine_id}/archive", response_model=AdminRoutineDetail)
+def archive_routine(routine_id: int, admin: AdminUser, db: DbSession):
+    routine = routines.load_routine(db, routine_id)
+    routines.archive_routine(db, admin, routine)
+    db.commit()
+    return _detail(db, routines.load_routine(db, routine_id))
+
+
+@router.post("/routines/{routine_id}/restore", response_model=AdminRoutineDetail)
+def restore_routine(routine_id: int, admin: AdminUser, db: DbSession):
+    routine = routines.load_routine(db, routine_id)
+    routines.restore_routine(db, admin, routine)
+    db.commit()
+    return _detail(db, routines.load_routine(db, routine_id))
+
+
+@router.delete("/routines/{routine_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_routine(routine_id: int, admin: AdminUser, db: DbSession):
+    routines.delete_routine(db, admin, routine_id)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/routines/{routine_id}/steps", response_model=AdminRoutineDetail, status_code=status.HTTP_201_CREATED)

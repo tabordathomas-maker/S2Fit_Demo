@@ -36,7 +36,7 @@ describe("RoutinesAdmin", () => {
     renderWithProviders(<RoutinesAdmin />);
 
     await userEvent.click(await screen.findByRole("button", { name: /Laura Gómez/ }));
-    await waitFor(() => expect(adminApi.routines).toHaveBeenCalledWith("u-laura"));
+    await waitFor(() => expect(adminApi.routines).toHaveBeenCalledWith("u-laura", false));
 
     await userEvent.click(await screen.findByRole("button", { name: "Nueva rutina" }));
     await userEvent.type(screen.getByLabelText("Título"), "Piernas");

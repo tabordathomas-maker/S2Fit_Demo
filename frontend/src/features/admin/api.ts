@@ -262,7 +262,11 @@ export const adminApi = {
   decideRedemption: (id: number, status: "fulfilled" | "cancelled", admin_notes?: string) =>
     post<AdminRedemption>(`/redemptions/${id}/decision`, { status, admin_notes }),
 
-  routines: (userId?: string) => apiFetch<AdminRoutine[]>(`${A}/routines`, { query: { user_id: userId } }),
+  routines: (userId?: string, includeArchived = false) =>
+    apiFetch<AdminRoutine[]>(`${A}/routines`, { query: { user_id: userId, include_archived: includeArchived ? "true" : undefined } }),
+  archiveRoutine: (id: number) => post<AdminRoutineDetail>(`/routines/${id}/archive`),
+  restoreRoutine: (id: number) => post<AdminRoutineDetail>(`/routines/${id}/restore`),
+  deleteRoutine: (id: number) => apiFetch<void>(`${A}/routines/${id}`, { method: "DELETE" }),
   routine: (id: number) => apiFetch<AdminRoutineDetail>(`${A}/routines/${id}`),
   createRoutine: (body: Record<string, unknown>) => post<AdminRoutineDetail>("/routines", body),
   updateRoutine: (id: number, body: Record<string, unknown>) => patch<AdminRoutineDetail>(`/routines/${id}`, body),

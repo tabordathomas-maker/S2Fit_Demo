@@ -1,5 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 
+import { ConfirmDialog } from "../../components/admin/ConfirmDialog";
+import { DeleteDialog } from "../../components/admin/DeleteDialog";
+import { diffPatch } from "../../components/admin/patch";
+import { RowActions } from "../../components/admin/RowActions";
+import { ShowArchivedToggle } from "../../components/admin/ShowArchivedToggle";
 import { Alert, Badge, Button, Field, Spinner, TextArea } from "../../components/ui";
 import { IMAGE_ACCEPT, IMAGE_HINT } from "../../components/FileUploadButton";
 import { errorMessage } from "../../services/api";
@@ -85,7 +90,21 @@ function UserLine({ profile }: { profile: Profile }) {
 }
 
 function UserRoutines({ user, onOpen }: { user: Profile; onOpen: (view: View) => void }) {
-  const routines = useAsync(() => adminApi.routines(user.id), [user.id]);
+  const [showArchived, setShowArchived] = useState(false);
+  const routines = useAsync(() => adminApi.routines(user.id, showArchived), [user.id, showArchived]);
+  const [deleting, setDeleting] = useState<AdminRoutine | null>(null);
+  const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+
+  const run = async (fn: () => Promise<unknown>, success: string) => {
+    setMessage(null);
+    try {
+      await fn();
+      setMessage({ tone: "success", text: success });
+      await routines.reload();
+    } catch (err) {
+      setMessage({ tone: "error", text: errorMessage(err) });
+    }
+  };
 
   return (
     <section className="flex flex-col gap-4">
@@ -93,6 +112,8 @@ function UserRoutines({ user, onOpen }: { user: Profile; onOpen: (view: View) =>
         <h3 className="text-2xl">Rutinas de esta persona</h3>
         <Button variant="dark" onClick={() => onOpen({ kind: "new" })}>Nueva rutina</Button>
       </div>
+      <ShowArchivedToggle checked={showArchived} onChange={setShowArchived} />
+      {message && <Alert tone={message.tone}>{message.text}</Alert>}
       {routines.loading && <Spinner />}
       {routines.error && <Alert>{routines.error}</Alert>}
       {routines.data?.length === 0 && <p className="muted">Todavía no tiene rutinas personalizadas.</p>}
@@ -105,12 +126,31 @@ function UserRoutines({ user, onOpen }: { user: Profile; onOpen: (view: View) =>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
-              <Button onClick={() => onOpen({ kind: "edit", id: r.id })}>Editar</Button>
-              <Button onClick={() => onOpen({ kind: "progress", id: r.id })}>Ver progreso</Button>
+              <Button aria-label={`Ver progreso de ${r.title}`} onClick={() => onOpen({ kind: "progress", id: r.id })}>Ver progreso</Button>
+              <RowActions
+                name={r.title}
+                archived={r.status === "archived"}
+                onEdit={() => onOpen({ kind: "edit", id: r.id })}
+                onArchive={() => void run(() => adminApi.archiveRoutine(r.id), "Rutina archivada.")}
+                onRestore={() => void run(() => adminApi.restoreRoutine(r.id), "Rutina restaurada.")}
+                onDelete={() => setDeleting(r)}
+              />
             </div>
           </li>
         ))}
       </ul>
+      <DeleteDialog
+        target={deleting ? { name: deleting.title } : null}
+        noun="rutina"
+        remove={() => adminApi.deleteRoutine(deleting!.id)}
+        archive={() => adminApi.archiveRoutine(deleting!.id)}
+        onClose={() => setDeleting(null)}
+        onDone={(outcome) => {
+          setMessage({ tone: "success", text: outcome === "deleted" ? `Rutina «${deleting?.title}» eliminada.` : `Rutina «${deleting?.title}» archivada.` });
+          setDeleting(null);
+          void routines.reload();
+        }}
+      />
     </section>
   );
 }
@@ -179,6 +219,7 @@ function RoutineEditor({ userId, id, onBack, onCreated }: { userId: string; id: 
               <Button onClick={() => void act(() => adminApi.updateRoutine(routine.id, { status: "draft" }), "La rutina volvió a borrador.")}>Volver a borrador</Button>
             )}
           </div>
+          <ReassignControl routine={routine} onReassigned={onBack} />
           <StepsEditor routine={routine} act={act} />
         </>
       )}
@@ -195,12 +236,19 @@ function RoutineForm({ routine, onSubmit }: { routine: AdminRoutineDetail | null
   });
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    await onSubmit({
+    const current = {
       title: form.title.trim(),
       goal: form.goal.trim() || null,
       description: form.description.trim() || null,
       sequential: form.sequential,
-    });
+    };
+    if (!routine) {
+      await onSubmit(current);
+      return;
+    }
+    // En edición solo se envía lo que cambió.
+    const changes = diffPatch({ title: routine.title, goal: routine.goal, description: routine.description, sequential: routine.sequential }, current);
+    if (Object.keys(changes).length > 0) await onSubmit(changes);
   };
   return (
     <form onSubmit={submit} className="card grid gap-3 sm:grid-cols-2">
@@ -215,6 +263,58 @@ function RoutineForm({ routine, onSubmit }: { routine: AdminRoutineDetail | null
       </label>
       <Button type="submit" variant="dark" className="self-start">{routine ? "Guardar datos" : "Crear rutina"}</Button>
     </form>
+  );
+}
+
+function ReassignControl({ routine, onReassigned }: { routine: AdminRoutineDetail; onReassigned: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<Profile | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const users = useAsync(() => (open ? adminApi.profiles(query.trim() || undefined) : Promise.resolve([] as Profile[])), [open, query]);
+
+  const confirm = async () => {
+    if (!picked) return;
+    try {
+      await adminApi.updateRoutine(routine.id, { user_id: picked.id });
+      setPicked(null);
+      onReassigned();
+    } catch (err) {
+      setPicked(null);
+      setError(errorMessage(err));
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 rounded-2xl bg-cream p-4">
+      <p className="text-sm">Asignada a <strong>{routine.user_name || routine.user_email}</strong>.</p>
+      {error && <Alert>{error}</Alert>}
+      {!open ? (
+        <Button className="self-start" onClick={() => setOpen(true)}>Reasignar a otra persona</Button>
+      ) : (
+        <>
+          <Field label="Buscar persona para reasignar" id="reassign-search" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <ul className="flex max-h-48 flex-col gap-2 overflow-y-auto">
+            {users.data?.filter((p) => p.id !== routine.user_id).map((p) => (
+              <li key={p.id}>
+                <button type="button" className="w-full rounded-2xl bg-white p-3 text-left text-sm hover:ring-2 hover:ring-burgundy" onClick={() => setPicked(p)}>
+                  <strong>{p.full_name || "Sin nombre"}</strong> · {p.email}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <Button className="self-start" onClick={() => setOpen(false)}>Cancelar reasignación</Button>
+        </>
+      )}
+      <ConfirmDialog
+        open={picked !== null}
+        title="Reasignar rutina"
+        confirmLabel="Reasignar"
+        message={<p>La rutina «{routine.title}» pasará a {picked?.full_name || picked?.email} y dejará de verla {routine.user_name || routine.user_email}.</p>}
+        onConfirm={() => void confirm()}
+        onCancel={() => setPicked(null)}
+      />
+    </div>
   );
 }
 
@@ -304,7 +404,7 @@ function StepForm({ initial, onSave, onCancel }: { initial?: AdminRoutineStep; o
   const id = initial ? `step-${initial.id}` : "step-new";
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    await onSave({
+    const current = {
       title: form.title.trim(),
       block_label: form.block_label.trim() || null,
       sets_reps: form.sets_reps.trim() || null,
@@ -312,7 +412,18 @@ function StepForm({ initial, onSave, onCancel }: { initial?: AdminRoutineStep; o
       instructions: form.instructions.trim() || null,
       media_url: form.media_url.trim() || null,
       cover_url: form.cover_url.trim() || null,
-    });
+    };
+    if (!initial) {
+      await onSave(current);
+      return;
+    }
+    const changes = diffPatch(
+      { title: initial.title, block_label: initial.block_label, sets_reps: initial.sets_reps, duration_minutes: initial.duration_minutes,
+        instructions: initial.instructions, media_url: initial.media_url, cover_url: initial.cover_url },
+      current,
+    );
+    if (Object.keys(changes).length > 0) await onSave(changes);
+    else onCancel();
   };
   return (
     <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">

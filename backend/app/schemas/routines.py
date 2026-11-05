@@ -126,6 +126,7 @@ class RoutineCreate(InputModel):
 
 
 class RoutineUpdate(InputModel):
+    user_id: uuid.UUID | None = None
     title: str | None = Field(default=None, min_length=2, max_length=160)
     description: str | None = Field(default=None, max_length=5000)
     goal: str | None = Field(default=None, max_length=160)

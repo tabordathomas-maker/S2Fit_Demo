@@ -3,7 +3,7 @@
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core import clock
@@ -12,6 +12,7 @@ from app.core.errors import AppError, conflict, not_found
 from app.models import CustomRoutine, Profile, RoutineStep, RoutineStepCompletion
 from app.models.enums import RoutineStatus
 from app.schemas.routines import CompleteStep
+from app.services import archive, audit
 
 WEEKS = 8
 
@@ -229,3 +230,61 @@ def renumber(db: Session, routine_id: int, ordered_ids: list[int]) -> None:
 def validate_activation(routine: CustomRoutine) -> None:
     if not routine.steps:
         raise AppError(422, "routine_empty", "Agrega al menos un paso antes de activar la rutina.")
+
+
+def completions_count(db: Session, routine_id: int) -> int:
+    return db.scalar(
+        select(func.count(RoutineStepCompletion.id))
+        .join(RoutineStep, RoutineStep.id == RoutineStepCompletion.step_id)
+        .where(RoutineStep.routine_id == routine_id)
+    ) or 0
+
+
+def admin_update(db: Session, admin: Profile, routine: CustomRoutine, changes: dict) -> None:
+    """PATCH parcial de una rutina: título, descripción, objetivo, estado, secuencia y persona asignada."""
+    for key in ("title", "sequential", "status"):
+        if key in changes and changes[key] is None:
+            changes.pop(key)
+    new_user_id = changes.pop("user_id", None)
+    if changes.get("status") == RoutineStatus.active:
+        validate_activation(routine)
+    reassigned = None
+    if new_user_id is not None and new_user_id != routine.user_id:
+        if db.get(Profile, new_user_id) is None:
+            raise not_found("Usuario no encontrado.")
+        done = completions_count(db, routine.id)
+        archive.block_if_referenced(
+            f"Esta rutina ya tiene {archive.plural(done, 'avance registrado', 'avances registrados')} de su dueña actual. "
+            "No se puede reasignar: archívala y crea una nueva para la otra persona.",
+            {"completions": done},
+        )
+        reassigned = {"from": str(routine.user_id), "to": str(new_user_id)}
+        routine.user_id = new_user_id
+    real = archive.apply_update(db, admin, routine, "routine", routine.id, changes)
+    if reassigned:
+        audit.record(db, admin, "routine.reassign", "routine", routine.id, reassigned)
+    elif not real:
+        return
+
+
+def archive_routine(db: Session, admin: Profile, routine: CustomRoutine) -> None:
+    routine.status = RoutineStatus.archived
+    audit.record(db, admin, "routine.archive", "routine", routine.id, {})
+
+
+def restore_routine(db: Session, admin: Profile, routine: CustomRoutine) -> None:
+    routine.status = RoutineStatus.active if routine.steps else RoutineStatus.draft
+    audit.record(db, admin, "routine.restore", "routine", routine.id, {"status": routine.status})
+
+
+def delete_routine(db: Session, admin: Profile, routine_id: int) -> None:
+    routine = load_routine(db, routine_id)
+    done = completions_count(db, routine.id)
+    archive.block_if_referenced(
+        f"Esta rutina tiene {archive.plural(done, 'avance registrado', 'avances registrados')}. "
+        "Puedes archivarla para conservar el historial.",
+        {"completions": done},
+    )
+    audit.record(db, admin, "routine.delete", "routine", routine.id,
+                 {"title": routine.title, "user_id": str(routine.user_id), "steps": len(routine.steps)})
+    db.delete(routine)  # sus pasos se borran en cascada
