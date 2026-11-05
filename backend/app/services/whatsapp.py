@@ -10,7 +10,7 @@ def format_cop(amount: int) -> str:
 
 def order_message(order: Order) -> str:
     lines = [
-        "Hola, quiero comprar en S2 Fit Evolution.",
+        "Hola, quiero comprar en S2 Fit.",
         f"Mi referencia de pedido es {order.reference}.",
         "",
         "Productos:",

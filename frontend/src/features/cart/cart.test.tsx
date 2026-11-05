@@ -27,7 +27,7 @@ const createdOrder = {
   reference: "S2-ORD-ABCD2345",
   status: "pending_payment",
   total: 290000,
-  whatsapp_message: "Hola, quiero comprar en S2 Fit Evolution. Mi referencia de pedido es S2-ORD-ABCD2345.",
+  whatsapp_message: "Hola, quiero comprar en S2 Fit. Mi referencia de pedido es S2-ORD-ABCD2345.",
 } as OrderWithMessage;
 
 describe("CartProvider", () => {
