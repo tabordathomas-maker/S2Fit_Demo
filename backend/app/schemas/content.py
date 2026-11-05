@@ -45,6 +45,7 @@ class ContentCreate(InputModel):
 
 
 class ContentUpdate(InputModel):
+    kind: ContentKind | None = None
     title: str | None = Field(default=None, min_length=2, max_length=160)
     summary: str | None = Field(default=None, max_length=300)
     body: str | None = Field(default=None, max_length=20000)

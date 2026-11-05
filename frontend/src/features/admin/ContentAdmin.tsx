@@ -1,44 +1,71 @@
 import { useState, type FormEvent } from "react";
 
 import { FileUploadButton, IMAGE_ACCEPT, IMAGE_HINT } from "../../components/FileUploadButton";
+import { DeleteDialog } from "../../components/admin/DeleteDialog";
+import { diffPatch } from "../../components/admin/patch";
+import { RowActions } from "../../components/admin/RowActions";
+import { ShowArchivedToggle } from "../../components/admin/ShowArchivedToggle";
 import { Alert, Badge, Button, Field, Select, Spinner, TextArea } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { formatDateTime } from "../../services/format";
 import { useAsync } from "../../services/useAsync";
 import { MediaPlayer } from "../content/ContentGrid";
-import { adminApi, type AdminContent } from "./api";
+import { adminApi, type AdminChallenge, type AdminContent, type AdminReward } from "./api";
 
 const KIND_LABEL = { routine: "Rutina", recipe: "Receta", growth: "Crecimiento", meal: "Alimentación" } as const;
 
-export function ContentAdmin() {
-  const content = useAsync(() => adminApi.content(), []);
-  const challenges = useAsync(() => adminApi.challenges(), []);
-  const rewards = useAsync(() => adminApi.rewards(), []);
-  const redemptions = useAsync(() => adminApi.redemptions(), []);
-  const [error, setError] = useState<string | null>(null);
+type Run = (fn: () => Promise<unknown>, success?: string) => Promise<boolean>;
+type Ask = (target: DeleteTarget) => void;
+interface DeleteTarget {
+  kind: "content" | "challenge" | "reward";
+  id: number;
+  name: string;
+}
+const DELETE_NOUN = { content: "contenido", challenge: "reto", reward: "recompensa" } as const;
 
-  const run = async (fn: () => Promise<unknown>) => {
-    setError(null);
+export function ContentAdmin() {
+  const [showArchived, setShowArchived] = useState(false);
+  const content = useAsync(() => adminApi.content(showArchived), [showArchived]);
+  const challenges = useAsync(() => adminApi.challenges(showArchived), [showArchived]);
+  const rewards = useAsync(() => adminApi.rewards(showArchived), [showArchived]);
+  const redemptions = useAsync(() => adminApi.redemptions(), []);
+  const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [deleting, setDeleting] = useState<DeleteTarget | null>(null);
+
+  const reloadAll = () => Promise.all([content.reload(), challenges.reload(), rewards.reload(), redemptions.reload()]);
+  const run: Run = async (fn, success) => {
+    setMessage(null);
     try {
       await fn();
-      await Promise.all([content.reload(), challenges.reload(), rewards.reload(), redemptions.reload()]);
+      if (success) setMessage({ tone: "success", text: success });
+      await reloadAll();
       return true;
     } catch (err) {
-      setError(errorMessage(err));
+      setMessage({ tone: "error", text: errorMessage(err) });
       return false;
     }
   };
 
+  const remove = () => {
+    const t = deleting!;
+    return t.kind === "content" ? adminApi.deleteContent(t.id) : t.kind === "challenge" ? adminApi.deleteChallenge(t.id) : adminApi.deleteReward(t.id);
+  };
+  const archiveInstead = () => {
+    const t = deleting!;
+    return t.kind === "content" ? adminApi.archiveContent(t.id) : t.kind === "challenge" ? adminApi.archiveChallenge(t.id) : adminApi.archiveReward(t.id);
+  };
+
   return (
     <div className="flex flex-col gap-8">
-      {error && <Alert>{error}</Alert>}
+      {message && <Alert tone={message.tone}>{message.text}</Alert>}
+      <ShowArchivedToggle checked={showArchived} onChange={setShowArchived} />
 
       <section className="flex flex-col gap-4">
         <h3 className="text-2xl">Contenido</h3>
-        <ContentForm onSave={(body) => run(() => adminApi.createContent(body))} />
+        <ContentForm onSave={(body) => run(() => adminApi.createContent(body), "Contenido creado.")} />
         {content.loading && <Spinner />}
         <ul className="flex flex-col gap-2">
-          {content.data?.map((c) => <ContentRow key={c.id} item={c} run={run} />)}
+          {content.data?.map((c) => <ContentRow key={c.id} item={c} run={run} ask={setDeleting} />)}
         </ul>
       </section>
 
@@ -46,15 +73,7 @@ export function ContentAdmin() {
         <h3 className="text-2xl">Retos</h3>
         <NewChallengeForm run={run} />
         <ul className="flex flex-col gap-2">
-          {challenges.data?.map((c) => (
-            <li key={c.id} className="card flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
-              <span className="font-bold">{c.title}</span>
-              <span>{c.target_count} días{c.is_demo ? " · demo" : ""}</span>
-              <Button onClick={() => void run(() => adminApi.updateChallenge(c.id, { is_active: !c.is_active }))}>
-                {c.is_active ? "Desactivar" : "Activar"}
-              </Button>
-            </li>
-          ))}
+          {challenges.data?.map((c) => <ChallengeRow key={c.id} challenge={c} run={run} ask={setDeleting} />)}
         </ul>
       </section>
 
@@ -62,15 +81,7 @@ export function ContentAdmin() {
         <h3 className="text-2xl">Recompensas</h3>
         <NewRewardForm run={run} />
         <ul className="flex flex-col gap-2">
-          {rewards.data?.map((r) => (
-            <li key={r.id} className="card flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
-              <span className="font-bold">{r.name}</span>
-              <span>{r.kind === "habit_discount" ? "Hábitos" : "Retos"} · desde {r.threshold_pct}%</span>
-              <Button onClick={() => void run(() => adminApi.updateReward(r.id, { is_active: !r.is_active }))}>
-                {r.is_active ? "Desactivar" : "Activar"}
-              </Button>
-            </li>
-          ))}
+          {rewards.data?.map((r) => <RewardRow key={r.id} reward={r} run={run} ask={setDeleting} />)}
         </ul>
       </section>
 
@@ -93,7 +104,94 @@ export function ContentAdmin() {
           ))}
         </ul>
       </section>
+
+      <DeleteDialog
+        target={deleting}
+        noun={deleting ? DELETE_NOUN[deleting.kind] : ""}
+        remove={remove}
+        archive={archiveInstead}
+        onClose={() => setDeleting(null)}
+        onDone={(outcome) => {
+          setMessage({ tone: "success", text: outcome === "deleted" ? `«${deleting?.name}» eliminado.` : `«${deleting?.name}» archivado.` });
+          setDeleting(null);
+          void reloadAll();
+        }}
+      />
     </div>
+  );
+}
+
+function ChallengeRow({ challenge: c, run, ask }: { challenge: AdminChallenge; run: Run; ask: Ask }) {
+  const [editing, setEditing] = useState(false);
+  const initial = { title: c.title, description: c.description, target_count: c.target_count };
+  const [form, setForm] = useState({ title: c.title, description: c.description ?? "", target_count: String(c.target_count) });
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    const changes = diffPatch(initial, { title: form.title.trim(), description: form.description.trim() || null, target_count: Number(form.target_count) });
+    if (Object.keys(changes).length === 0) return setEditing(false);
+    if (await run(() => adminApi.updateChallenge(c.id, changes), "Reto actualizado.")) setEditing(false);
+  };
+  return (
+    <li className="card flex flex-col gap-3 p-4 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-bold">{c.title}</span>
+        <span>{c.target_count} días{c.is_demo ? " · demo" : ""}</span>
+        {!c.is_active && <Badge tone="gray">Archivado</Badge>}
+        <RowActions
+          name={c.title}
+          archived={!c.is_active}
+          onEdit={() => setEditing((v) => !v)}
+          onArchive={() => void run(() => adminApi.archiveChallenge(c.id), "Reto archivado.")}
+          onRestore={() => void run(() => adminApi.restoreChallenge(c.id), "Reto restaurado.")}
+          onDelete={() => ask({ kind: "challenge", id: c.id, name: c.title })}
+        />
+      </div>
+      {editing && (
+        <form onSubmit={save} aria-label={`Editar reto ${c.title}`} className="grid gap-3 sm:grid-cols-3 sm:items-end">
+          <Field label="Título del reto" id={`chg-t-${c.id}`} required minLength={2} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <Field label="Días del reto" id={`chg-n-${c.id}`} type="number" min={1} value={form.target_count} onChange={(e) => setForm({ ...form, target_count: e.target.value })} />
+          <Button type="submit" variant="dark">Guardar reto</Button>
+          <div className="sm:col-span-3"><TextArea label="Descripción del reto" id={`chg-d-${c.id}`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+        </form>
+      )}
+    </li>
+  );
+}
+
+function RewardRow({ reward: r, run, ask }: { reward: AdminReward; run: Run; ask: Ask }) {
+  const [editing, setEditing] = useState(false);
+  const initial = { name: r.name, description: r.description, threshold_pct: r.threshold_pct };
+  const [form, setForm] = useState({ name: r.name, description: r.description ?? "", threshold_pct: String(r.threshold_pct) });
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    const changes = diffPatch(initial, { name: form.name.trim(), description: form.description.trim() || null, threshold_pct: Number(form.threshold_pct) });
+    if (Object.keys(changes).length === 0) return setEditing(false);
+    if (await run(() => adminApi.updateReward(r.id, changes), "Recompensa actualizada.")) setEditing(false);
+  };
+  return (
+    <li className="card flex flex-col gap-3 p-4 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-bold">{r.name}</span>
+        <span>{r.kind === "habit_discount" ? "Hábitos" : "Retos"} · desde {r.threshold_pct}%</span>
+        {!r.is_active && <Badge tone="gray">Archivada</Badge>}
+        <RowActions
+          name={r.name}
+          archived={!r.is_active}
+          onEdit={() => setEditing((v) => !v)}
+          onArchive={() => void run(() => adminApi.archiveReward(r.id), "Recompensa archivada.")}
+          onRestore={() => void run(() => adminApi.restoreReward(r.id), "Recompensa restaurada.")}
+          onDelete={() => ask({ kind: "reward", id: r.id, name: r.name })}
+        />
+      </div>
+      {editing && (
+        <form onSubmit={save} aria-label={`Editar recompensa ${r.name}`} className="grid gap-3 sm:grid-cols-3 sm:items-end">
+          <Field label="Nombre de la recompensa" id={`rwd-n-${r.id}`} required minLength={2} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Field label="Porcentaje desde" id={`rwd-p-${r.id}`} type="number" min={1} max={100} value={form.threshold_pct} onChange={(e) => setForm({ ...form, threshold_pct: e.target.value })} />
+          <Button type="submit" variant="dark">Guardar recompensa</Button>
+          <div className="sm:col-span-3"><TextArea label="Descripción de la recompensa" id={`rwd-d-${r.id}`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+        </form>
+      )}
+    </li>
   );
 }
 
@@ -110,21 +208,27 @@ function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
   );
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const body: Record<string, unknown> = {
-      title: form.title, meta: form.meta || null, summary: form.summary || null, body: form.body || null,
+    const current = {
+      kind: form.kind, title: form.title, meta: form.meta || null, summary: form.summary || null, body: form.body || null,
       media_url: form.media_url || null, cover_url: form.cover_url || null, meal_slot: form.meal_slot || null,
     };
-    if (!initial) body.kind = form.kind;
-    if ((await onSave(body)) && !initial) setForm(EMPTY);
+    if (!initial) {
+      if (await onSave(current)) setForm(EMPTY);
+      return;
+    }
+    const changes = diffPatch(
+      { kind: initial.kind, title: initial.title, meta: initial.meta, summary: initial.summary, body: initial.body,
+        media_url: initial.media_url, cover_url: initial.cover_url, meal_slot: initial.meal_slot },
+      current,
+    );
+    if (Object.keys(changes).length > 0) await onSave(changes);
   };
   const id = initial ? `c${initial.id}` : "new";
   return (
     <form onSubmit={submit} className="card grid gap-3 sm:grid-cols-2">
-      {!initial && (
-        <Select label="Tipo" id={`${id}-kind`} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-          {Object.entries(KIND_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </Select>
-      )}
+      <Select label="Tipo" id={`${id}-kind`} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as AdminContent["kind"] })}>
+        {Object.entries(KIND_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </Select>
       <Field label="Título" id={`${id}-title`} required minLength={2} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <Field label="Detalle corto" id={`${id}-meta`} placeholder="Video · 20 min" value={form.meta} onChange={(e) => setForm({ ...form, meta: e.target.value })} />
       <div className="flex flex-col gap-3 rounded-2xl bg-cream p-4 sm:col-span-2">
@@ -161,26 +265,40 @@ function ContentForm({ initial, onSave, submitLabel = "Crear contenido" }: {
   );
 }
 
-function ContentRow({ item, run }: { item: AdminContent; run: (fn: () => Promise<unknown>) => Promise<boolean> }) {
+function ContentRow({ item, run, ask }: { item: AdminContent; run: Run; ask: Ask }) {
   const [editing, setEditing] = useState(false);
   return (
     <li className="flex flex-col gap-2 rounded-2xl bg-white p-4 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span><strong>{item.title}</strong> · {KIND_LABEL[item.kind]}{item.is_demo ? " · demo" : ""}</span>
-        <div className="flex gap-2">
-          <Badge tone={item.is_published ? "green" : "gray"}>{item.is_published ? "Publicado" : "Oculto"}</Badge>
-          <Button onClick={() => setEditing((v) => !v)}>{editing ? "Cerrar" : "Editar"}</Button>
-          <Button onClick={() => void run(() => adminApi.updateContent(item.id, { is_published: !item.is_published }))}>
-            {item.is_published ? "Ocultar" : "Publicar"}
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={item.is_published ? "green" : "gray"}>{item.is_published ? "Publicado" : "Archivado"}</Badge>
+          <RowActions
+            name={item.title}
+            archived={!item.is_published}
+            onEdit={() => setEditing((v) => !v)}
+            onArchive={() => void run(() => adminApi.archiveContent(item.id), "Contenido archivado: ya no se ve en Mi Ruta.")}
+            onRestore={() => void run(() => adminApi.restoreContent(item.id), "Contenido restaurado.")}
+            onDelete={() => ask({ kind: "content", id: item.id, name: item.title })}
+          />
         </div>
       </div>
-      {editing && <ContentForm initial={item} submitLabel="Guardar cambios" onSave={(body) => run(() => adminApi.updateContent(item.id, body))} />}
+      {editing && (
+        <ContentForm
+          initial={item}
+          submitLabel="Guardar cambios"
+          onSave={async (body) => {
+            const ok = await run(() => adminApi.updateContent(item.id, body), "Contenido actualizado.");
+            if (ok) setEditing(false);
+            return ok;
+          }}
+        />
+      )}
     </li>
   );
 }
 
-function NewChallengeForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<boolean> }) {
+function NewChallengeForm({ run }: { run: Run }) {
   const [form, setForm] = useState({ title: "", description: "", target_count: "7" });
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -197,7 +315,7 @@ function NewChallengeForm({ run }: { run: (fn: () => Promise<unknown>) => Promis
   );
 }
 
-function NewRewardForm({ run }: { run: (fn: () => Promise<unknown>) => Promise<boolean> }) {
+function NewRewardForm({ run }: { run: Run }) {
   const [form, setForm] = useState({ name: "", kind: "challenge", threshold_pct: "25" });
   const submit = async (e: FormEvent) => {
     e.preventDefault();
