@@ -1,8 +1,11 @@
+import { QRCodeSVG } from "qrcode.react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { Alert, Badge, Button, LinkButton, Pill, Spinner } from "../../components/ui";
+import { config } from "../../config";
 import { formatCOP } from "../../services/format";
+import { formatSize } from "../../services/sizes";
 import type { ProductDetail } from "../../services/types";
 import { useAsync } from "../../services/useAsync";
 import { MAX_PER_VARIANT, useCart } from "../cart/CartProvider";
@@ -16,7 +19,7 @@ export function ProductPage() {
   return (
     <section className="py-12">
       <div className="wrap">
-        <Link to="/tienda" className="font-bold text-burgundy">← Volver a la tienda</Link>
+        <Link to="/tienda" className="inline-flex min-h-11 items-center font-bold text-burgundy">← Volver a la tienda</Link>
         {product.loading && <Spinner />}
         {product.error && <div className="mt-6"><Alert>{product.error}</Alert></div>}
         {product.data && <ProductView product={product.data} />}
@@ -43,7 +46,7 @@ function ProductView({ product }: { product: ProductDetail }) {
       variantId: variant.id,
       productSlug: product.slug,
       productName: product.name,
-      variantLabel: `Talla ${variant.size} · ${variant.color}`,
+      variantLabel: `Talla ${formatSize(variant.size)} · ${variant.color}`,
       imageUrl: product.image_url,
       displayPrice: variant.unit_price,
       quantity,
@@ -64,7 +67,24 @@ function ProductView({ product }: { product: ProductDetail }) {
         <p className="muted text-lg">{product.description}</p>
         <span className="text-2xl font-bold text-burgundy">{formatCOP(variant?.unit_price ?? product.base_price)}</span>
 
-        <fieldset>
+        <aside className="flex items-center gap-4 rounded-2xl bg-cream p-4" aria-label="Incluye QR a Mi Ruta">
+          <QRCodeSVG
+            value={`${window.location.origin}${config.baseUrl}#/mi-ruta`}
+            size={72}
+            role="img"
+            aria-label="QR de ejemplo a Mi Ruta"
+            className="shrink-0"
+          />
+          <div className="flex flex-col gap-1 text-sm">
+            <h2 className="font-display text-lg text-burgundy">Incluye QR a Mi Ruta</h2>
+            <p>Cada prenda trae un QR para entrar gratis a rutinas, recetas y tu panel de hábitos.</p>
+            <Link to="/mi-ruta" className="inline-flex min-h-11 items-center font-bold text-burgundy underline">Ver Mi Ruta</Link>
+          </div>
+        </aside>
+
+        {product.variants.length === 0 && <p className="font-bold text-burgundy">Consultar disponibilidad</p>}
+
+        <fieldset hidden={product.variants.length === 0}>
           <legend className="label">Color</legend>
           <div className="flex flex-wrap gap-2">
             {colors.map((c) => (
@@ -84,7 +104,7 @@ function ProductView({ product }: { product: ProductDetail }) {
                 className="disabled:opacity-40"
                 onClick={() => { setSize(v.size); setQuantity(1); setAdded(false); }}
               >
-                {v.size}{v.available === 0 ? " (agotada)" : ""}
+                {formatSize(v.size)}{v.available === 0 ? " (agotada)" : ""}
               </Pill>
             ))}
           </div>
@@ -114,7 +134,7 @@ function ProductView({ product }: { product: ProductDetail }) {
             Agregar a la bolsa
           </Button>
         </div>
-        {!variant && <p className="text-sm text-muted">Elige color y talla para continuar.</p>}
+        {!variant && product.variants.length > 0 && <p className="text-sm text-muted">Elige color y talla para continuar.</p>}
         {added && (
           <Alert tone="success">
             Agregado a tu bolsa. <LinkButton to="/carrito" variant="dark" className="ml-2 mt-2 sm:mt-0">Ver bolsa</LinkButton>

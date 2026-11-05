@@ -87,11 +87,11 @@ describe("S2BoxPage", () => {
     expect(await screen.findByText(/S2-SUB-PEND2345/)).toBeInTheDocument();
   });
 
-  it("sin planes avisa que pronto abrirán y ofrece WhatsApp", async () => {
+  it("sin planes avisa que se están definiendo y ofrece WhatsApp", async () => {
     vi.spyOn(subscriptionsApi, "plans").mockResolvedValue([]);
     renderWithProviders(<S2BoxPage />);
 
-    expect(await screen.findByText(/Pronto abriremos las suscripciones/)).toBeInTheDocument();
+    expect(await screen.findByText(/Estamos definiendo los planes/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Escribir por WhatsApp" })).toHaveAttribute("href", expect.stringContaining("wa.me/573001234567"));
     expect(screen.queryByText(/No hay planes activos/)).not.toBeInTheDocument();
   });

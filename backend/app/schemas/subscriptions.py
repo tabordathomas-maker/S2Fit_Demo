@@ -16,6 +16,7 @@ class PlanOut(ORMModel):
     period_label: str
     benefits: list[str]
     is_active: bool
+    hide_price: bool = False
 
 
 class PlanCreate(InputModel):
@@ -27,6 +28,7 @@ class PlanCreate(InputModel):
     period_label: str = Field(default="mensual", min_length=2, max_length=40)
     benefits: list[str] = Field(default_factory=list, max_length=20)
     is_active: bool = True
+    hide_price: bool = False
     sort_order: int = 0
 
 
@@ -39,6 +41,7 @@ class PlanUpdate(InputModel):
     period_label: str | None = Field(default=None, min_length=2, max_length=40)
     benefits: list[str] | None = Field(default=None, max_length=20)
     is_active: bool | None = None
+    hide_price: bool | None = None
     sort_order: int | None = None
 
 

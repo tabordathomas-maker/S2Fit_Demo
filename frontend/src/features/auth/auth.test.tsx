@@ -17,7 +17,7 @@ describe("Formularios de autenticación", () => {
     await userEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
     await waitFor(() => expect(signUp).toHaveBeenCalledWith("laura@example.com", "contrasena-segura", "Laura Gómez", "3001112233"));
-    expect(await screen.findByText(/Te enviamos un enlace/)).toBeInTheDocument();
+    expect(await screen.findByText(/Te enviamos un correo para confirmar tu cuenta/)).toBeInTheDocument();
   });
 
   it("muestra el error de credenciales al ingresar", async () => {

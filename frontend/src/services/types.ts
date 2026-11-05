@@ -118,6 +118,7 @@ export interface Plan {
   period_label: string;
   benefits: string[];
   is_active: boolean;
+  hide_price?: boolean;
 }
 
 export interface SubscriptionRequest {

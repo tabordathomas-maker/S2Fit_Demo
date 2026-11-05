@@ -18,6 +18,7 @@ import { MembershipCard, needsRenewal } from "./MembershipCard";
 const PLANS_ID = "planes";
 
 export function planPriceLabel(plan: Plan): string {
+  if (plan.hide_price) return "Precio por confirmar";
   return plan.price ? `${formatCOP(plan.price)} · ${plan.period_label}` : "Consulta el precio por WhatsApp";
 }
 
@@ -155,9 +156,9 @@ export function S2BoxPage() {
             {!plans.loading && !plans.error && plans.data?.length === 0 && (
               <div className="flex flex-col gap-3">
                 <Alert tone="info">
-                  <p>Pronto abriremos las suscripciones a S2 Box. Escríbenos por WhatsApp para más información.</p>
+                  <p>Estamos definiendo los planes. Escríbenos por WhatsApp para apartar tu primera S2 Box.</p>
                   {whatsappUrl && (
-                    <a href={whatsappUrl} target="_blank" rel="noreferrer" className="font-bold text-burgundy underline">Escribir por WhatsApp</a>
+                    <a href={whatsappUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center font-bold text-burgundy underline">Escribir por WhatsApp</a>
                   )}
                 </Alert>
                 {isAdmin && (

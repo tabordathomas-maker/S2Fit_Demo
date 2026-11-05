@@ -4,7 +4,7 @@ import { Alert, buttonClasses } from "../../components/ui";
 import { buildWhatsAppUrl } from "../../services/whatsapp";
 
 /** Muestra la referencia creada y el enlace a WhatsApp (por si la redirección no se abre sola). */
-export function WhatsAppHandoff({ title, reference, message, detail }: { title: string; reference: string; message: string; detail?: string }) {
+export function WhatsAppHandoff({ title, reference, message, detail, note }: { title: string; reference: string; message: string; detail?: string; note?: string }) {
   const url = buildWhatsAppUrl(message);
   const [copied, setCopied] = useState(false);
 
@@ -24,6 +24,7 @@ export function WhatsAppHandoff({ title, reference, message, detail }: { title: 
         Tu referencia es <strong className="font-mono text-burgundy">{reference}</strong>
       </p>
       {detail && <p className="muted">{detail}</p>}
+      {note && <p className="font-bold text-burgundy">{note}</p>}
       {url ? (
         <a href={url} className={buttonClasses("dark", "self-start")}>Abrir WhatsApp</a>
       ) : (

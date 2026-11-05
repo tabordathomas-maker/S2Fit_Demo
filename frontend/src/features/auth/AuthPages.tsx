@@ -105,8 +105,9 @@ export function RegisterPage() {
   if (done) {
     return (
       <AuthCard title="Revisa tu correo">
-        <Alert tone="success">Te enviamos un enlace para confirmar tu cuenta. Después podrás ingresar.</Alert>
-        <Link to="/ingresar" className="font-bold text-burgundy">Ir a ingresar</Link>
+        <Alert tone="success">Te enviamos un correo para confirmar tu cuenta. Revisa también spam.</Alert>
+        <Link to="/ingresar" className="inline-flex min-h-11 items-center font-bold text-burgundy">Ir a ingresar</Link>
+        <Link to="/tienda" className="inline-flex min-h-11 items-center font-bold text-burgundy underline">Explorar la tienda sin cuenta</Link>
       </AuthCard>
     );
   }

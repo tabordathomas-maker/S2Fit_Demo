@@ -18,7 +18,9 @@ router = APIRouter(tags=["S2 Box"])
 
 @router.get("/plans", response_model=list[PlanOut])
 def list_plans(db: DbSession):
-    return db.scalars(select(Plan).where(Plan.is_active.is_(True)).order_by(Plan.sort_order, Plan.id)).all()
+    plans = db.scalars(select(Plan).where(Plan.is_active.is_(True)).order_by(Plan.sort_order, Plan.id)).all()
+    # Precio oculto: el público no recibe el valor (la web muestra «Precio por confirmar»).
+    return [{**PlanOut.model_validate(p).model_dump(), "price": None if p.hide_price else p.price} for p in plans]
 
 
 @router.post("/subscriptions/requests", response_model=SubscriptionRequestCreated,

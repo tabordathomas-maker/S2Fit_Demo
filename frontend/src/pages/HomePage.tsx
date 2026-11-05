@@ -15,20 +15,24 @@ const PILLARS = [
 
 function FeaturedProducts() {
   const products = useAsync(() => catalogApi.products(), []);
-  const featured = products.data?.slice(0, 3) ?? [];
+  const all = products.data ?? [];
+  const inStock = all.filter((p) => p.in_stock);
+  // Solo prendas con existencias; si todo está agotado se muestran las más recientes (la sección nunca queda vacía).
+  const featured = inStock.length > 0 ? inStock.slice(0, 3) : [...all].sort((a, b) => b.id - a.id).slice(0, 3);
   if (featured.length === 0) return null;
   return (
     <section className="pb-[72px]">
       <div className="wrap flex flex-col gap-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-[clamp(28px,4vw,40px)]">Para moverte hoy</h2>
-          <Link to="/tienda" className="font-bold text-burgundy">Ver toda la tienda →</Link>
+          <Link to="/tienda" className="inline-flex min-h-11 items-center font-bold text-burgundy">Ver toda la tienda →</Link>
         </div>
         <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr))]">
           {featured.map((p) => (
             <Link key={p.id} to={`/tienda/${p.slug}`} className="overflow-hidden rounded-3xl bg-white">
               <ProductImage src={p.image_url} alt={p.name} className="h-72 w-full" />
               <div className="flex flex-col gap-1 p-5">
+                {!p.in_stock && <span className="w-fit rounded-full bg-neutral-200 px-3 py-1 text-sm font-bold text-neutral-800">Agotado</span>}
                 <span className="font-display text-lg">{p.name}</span>
                 <span className="font-bold text-burgundy">{formatCOP(p.base_price)}</span>
               </div>

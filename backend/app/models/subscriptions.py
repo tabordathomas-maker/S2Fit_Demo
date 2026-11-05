@@ -10,6 +10,7 @@ from sqlalchemy import (
     String,
     Text,
     Uuid,
+    false,
     true,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -38,6 +39,8 @@ class Plan(TimestampMixin, Base):
     period_label: Mapped[str] = mapped_column(String(40), default="mensual")
     benefits: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Con true, la API pública devuelve price = null (precio por confirmar); el panel sí lo ve.
+    hide_price: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 

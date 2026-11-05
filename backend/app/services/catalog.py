@@ -1,4 +1,6 @@
-from sqlalchemy import exists, or_, select
+import unicodedata
+
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import not_found
@@ -7,8 +9,15 @@ from app.models import Category, Product, ProductVariant
 SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "Única"]
 
 
+def _fold(text: str) -> str:
+    """Minúsculas y sin tildes: «Única», «UNICA» y «unica» son la misma talla."""
+    return "".join(c for c in unicodedata.normalize("NFD", text.strip().lower()) if unicodedata.category(c) != "Mn")
+
+
 def _size_key(size: str) -> tuple[int, str]:
-    return (SIZE_ORDER.index(size), size) if size in SIZE_ORDER else (len(SIZE_ORDER), size)
+    order = [_fold(x) for x in SIZE_ORDER]
+    folded = _fold(size)
+    return (order.index(folded), size) if folded in order else (len(order), size)
 
 
 def _active_variants(product: Product) -> list[ProductVariant]:
@@ -59,7 +68,8 @@ def list_products(db: Session, q: str | None, category: str | None, size: str | 
         stmt = stmt.where(Category.slug == category)
     variant_filters = [ProductVariant.product_id == Product.id, ProductVariant.is_active.is_(True)]
     if size:
-        variant_filters.append(ProductVariant.size == size)
+        folded = func.translate(func.lower(ProductVariant.size), "áéíóúü", "aeiouu")
+        variant_filters.append(folded == _fold(size))
     if color:
         variant_filters.append(ProductVariant.color.ilike(color))
     if size or color:

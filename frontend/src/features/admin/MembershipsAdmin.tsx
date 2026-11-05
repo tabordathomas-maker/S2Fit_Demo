@@ -246,12 +246,13 @@ function PlanEditor({ plan, run, onDelete }: { plan: Plan; run: (fn: () => Promi
     period_label: plan.period_label,
     description: plan.description ?? "",
     benefits: plan.benefits.join("\n"),
+    hide_price: plan.hide_price ?? false,
   });
   const save = (e: FormEvent) => {
     e.preventDefault();
     // Solo se envía lo que cambió.
     const changes = diffPatch(
-      { name: plan.name, price: plan.price, duration_days: plan.duration_days, period_label: plan.period_label, description: plan.description, benefits: plan.benefits },
+      { name: plan.name, price: plan.price, duration_days: plan.duration_days, period_label: plan.period_label, description: plan.description, benefits: plan.benefits, hide_price: plan.hide_price ?? false },
       {
         name: form.name,
         price: form.price ? Number(form.price) : null,
@@ -259,6 +260,7 @@ function PlanEditor({ plan, run, onDelete }: { plan: Plan; run: (fn: () => Promi
         period_label: form.period_label,
         description: form.description || null,
         benefits: benefitsFrom(form.benefits),
+        hide_price: form.hide_price,
       },
     );
     if (Object.keys(changes).length === 0) return;
@@ -279,6 +281,10 @@ function PlanEditor({ plan, run, onDelete }: { plan: Plan; run: (fn: () => Promi
       <Field label="Nombre" id={`pn-${plan.id}`} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       <Field label="Precio (COP)" id={`pp-${plan.id}`} type="number" min={1} value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })}
         hint="Déjalo vacío para mostrar «Consulta el precio por WhatsApp»." />
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" className="mt-1 h-4 w-4 accent-burgundy" checked={form.hide_price} onChange={(e) => setForm({ ...form, hide_price: e.target.checked })} />
+        <span>Ocultar el precio al público (se muestra «Precio por confirmar»). Tú lo sigues viendo aquí.</span>
+      </label>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Vigencia (días)" id={`pd-${plan.id}`} type="number" min={1} value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} />
         <Field label="Periodicidad" id={`pl-${plan.id}`} value={form.period_label} onChange={(e) => setForm({ ...form, period_label: e.target.value })} />

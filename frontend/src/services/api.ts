@@ -1,4 +1,5 @@
 import { config } from "../config";
+import { retryPolicy } from "./retryPolicy";
 import { getAccessToken } from "./supabase";
 
 export class ApiError extends Error {
@@ -31,7 +32,73 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   return url.toString();
 }
 
+export { retryPolicy };
+
+type WakeState = { waking: boolean; failed: boolean };
+let wake: WakeState = { waking: false, failed: false };
+let slowCount = 0;
+const wakeListeners = new Set<() => void>();
+
+function setWake(next: Partial<WakeState>) {
+  wake = { ...wake, ...next };
+  wakeListeners.forEach((listener) => listener());
+}
+
+export function subscribeWake(listener: () => void): () => void {
+  wakeListeners.add(listener);
+  return () => wakeListeners.delete(listener);
+}
+
+export function getWakeState(): WakeState {
+  return wake;
+}
+
+/** Despierta la API (Render gratis se duerme) sin bloquear la interfaz. */
+export function wakeServer(): void {
+  void fetch(`${config.apiBaseUrl}/health`).catch(() => undefined);
+}
+
+function isRetryable(err: unknown): boolean {
+  return err instanceof ApiError && (err.code === "network_error" || [502, 503, 504].includes(err.status));
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  // Solo las lecturas se reintentan: repetir un POST/PATCH/PUT/DELETE podría duplicar una acción.
+  if ((options.method ?? "GET") !== "GET") return attempt<T>(path, options);
+
+  let slow = false;
+  const timer = setTimeout(() => {
+    slow = true;
+    slowCount += 1;
+    setWake({ waking: true, failed: false });
+  }, retryPolicy.slowAfterMs);
+  try {
+    for (let i = 0; ; i += 1) {
+      try {
+        const result = await attempt<T>(path, options);
+        if (wake.failed) setWake({ failed: false });
+        return result;
+      } catch (err) {
+        if (!isRetryable(err)) throw err;
+        if (i >= retryPolicy.delaysMs.length) {
+          setWake({ failed: true });
+          throw err;
+        }
+        await sleep(retryPolicy.delaysMs[i]);
+      }
+    }
+  } finally {
+    clearTimeout(timer);
+    if (slow) {
+      slowCount -= 1;
+      if (slowCount <= 0) setWake({ waking: false });
+    }
+  }
+}
+
+async function attempt<T>(path: string, options: RequestOptions): Promise<T> {
   const headers: Record<string, string> = {};
   const token = await getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;

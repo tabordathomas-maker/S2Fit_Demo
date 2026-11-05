@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 
 import logo from "../assets/logo-s2.png";
 import { Header } from "./Header";
+import { ServerWakeNotice } from "./ServerWakeNotice";
 
 function Footer() {
   return (
@@ -32,6 +33,7 @@ export function Layout() {
         <Outlet />
       </main>
       <Footer />
+      <ServerWakeNotice />
     </div>
   );
 }
