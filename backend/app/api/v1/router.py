@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import catalog, challenges, content, habits, me, orders, routines, s2box, settings, subscriptions
+from app.api.v1.admin import audit as admin_audit
 from app.api.v1.admin import box_images as admin_box_images
 from app.api.v1.admin import catalog as admin_catalog
 from app.api.v1.admin import memberships as admin_memberships
@@ -16,6 +17,6 @@ for module in (catalog, me, orders, subscriptions, content, habits, challenges, 
 
 # Cada endpoint administrativo declara AdminUser, que exige el rol "admin" en el backend.
 admin_router = APIRouter(prefix="/admin")
-for module in (admin_catalog, admin_sales, admin_memberships, admin_wellness, admin_users, admin_settings, admin_routines, admin_box_images):
+for module in (admin_catalog, admin_sales, admin_memberships, admin_wellness, admin_users, admin_settings, admin_routines, admin_box_images, admin_audit):
     admin_router.include_router(module.router)
 api_router.include_router(admin_router)

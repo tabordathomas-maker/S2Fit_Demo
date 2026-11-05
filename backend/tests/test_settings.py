@@ -4,7 +4,7 @@ import pytest
 
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.models import ContentItem, Profile
+from app.models import AdminAuditLog, ContentItem, Profile
 from app.services import storage
 from app.services.site_settings import normalize_whatsapp
 from scripts.set_role import assign_role
@@ -49,8 +49,10 @@ def test_admin_updates_whatsapp_and_it_is_public(client, db):
     assert response.json()["whatsapp_number"] == "573105551234"
     assert response.json()["updated_by_email"] == admin.email
     assert client.get("/api/v1/settings").json()["whatsapp_number"] == "573105551234"
-    logs = client.get("/api/v1/admin/audit-logs", params={"action": "settings.whatsapp_update"}, headers=admin.headers)
-    assert logs.json()[0]["details"] == {"from": None, "to": "573105551234"}
+    log = db.query(AdminAuditLog).filter_by(action="settings.whatsapp_update").one()
+    assert log.details == {"from": None, "to": "573105551234"}
+    events = client.get("/api/v1/admin/audit-logs", headers=admin.headers).json()["events"]
+    assert events[0]["phrase"] == "cambió el número de WhatsApp de la tienda"
 
 
 def test_admin_cannot_save_invalid_whatsapp(client, db):
@@ -179,12 +181,11 @@ def test_upload_audit_accepts_long_public_urls(client, db, monkeypatch, endpoint
     # Act
     response = client.post(f"/api/v1/admin/uploads/{endpoint}", headers=admin.headers,
                            files={"file": (filename, b"0000", content_type)})
-    logs = client.get("/api/v1/admin/audit-logs", headers=admin.headers)
+    first = db.query(AdminAuditLog).order_by(AdminAuditLog.id.desc()).first()
 
     # Assert
     assert response.status_code == 200
     url = response.json()["url"]
     assert len(url) > 64
-    first = logs.json()[0]
-    assert first["entity_id"].endswith(f"0123456789abcdef01234567.{ext}")
-    assert first["details"]["url"] == url
+    assert first.entity_id.endswith(f"0123456789abcdef01234567.{ext}") and len(first.entity_id) <= 64
+    assert first.details["url"] == url

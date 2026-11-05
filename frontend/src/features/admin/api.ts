@@ -129,16 +129,34 @@ export interface AdminRedemption {
   fulfilled_at: string | null;
 }
 
-export interface AuditLog {
+export type AuditTone = "success" | "warning" | "danger" | "neutral";
+export interface AuditTag { label: string; tone: AuditTone }
+export interface AuditChange { field: string; before: string; after: string }
+export interface AuditEvent {
   id: number;
-  admin_id: string;
-  admin_email: string | null;
+  when: string;
+  admin: string;
+  category: string;
   action: string;
-  entity_type: string;
-  entity_id: string;
-  details: Record<string, unknown>;
-  created_at: string;
+  phrase: string;
+  entity: { type: string; name: string };
+  changes: AuditChange[];
+  reference: string | null;
 }
+export interface AuditClientOrder { reference: string; total: number; status: AuditTag | null; payment: AuditTag | null; reserved_until: string | null; events: AuditEvent[] }
+export interface AuditClientRequest { reference: string; plan: string; agreed_price: number | null; status: AuditTag | null; payment: AuditTag | null; events: AuditEvent[] }
+export interface AuditClientSubscription { plan: string; status: AuditTag | null; text: string; events: AuditEvent[] }
+export interface AuditClient {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  last_activity: string | null;
+  orders: AuditClientOrder[];
+  requests: AuditClientRequest[];
+  subscription: AuditClientSubscription | null;
+}
+export interface AuditFilters { from?: string; to?: string; q?: string; category?: string; limit?: number; offset?: number }
 
 export interface AdminSettings {
   whatsapp_number: string | null;
@@ -294,5 +312,6 @@ export const adminApi = {
   routineProgress: (id: number) => apiFetch<RoutineDetail>(`${A}/routines/${id}/progress`),
 
   profiles: (q?: string) => apiFetch<AdminProfile[]>(`${A}/profiles`, { query: { q } }),
-  auditLogs: (action?: string) => apiFetch<AuditLog[]>(`${A}/audit-logs`, { query: { action } }),
+  auditClients: (filters: AuditFilters = {}) => apiFetch<{ total: number; clients: AuditClient[] }>(`${A}/audit/clients`, { query: { ...filters } }),
+  auditEvents: (filters: AuditFilters = {}) => apiFetch<{ total: number; events: AuditEvent[] }>(`${A}/audit-logs`, { query: { ...filters } }),
 };

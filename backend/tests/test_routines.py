@@ -5,7 +5,7 @@ from datetime import timedelta
 from sqlalchemy import func, select
 
 from app.core import clock
-from app.models import Plan, Profile, RoutineStepCompletion, Subscription
+from app.models import AdminAuditLog, Plan, Profile, RoutineStepCompletion, Subscription
 from tests.factories import create_admin, create_plan, new_user
 
 API = "/api/v1"
@@ -327,9 +327,11 @@ def test_admin_routine_actions_are_audited(client, db):
     client.put(f"{API}/admin/routines/{rid}/steps/order", headers=admin.headers, json={"step_ids": [two, one, three]})
     client.delete(f"{API}/admin/routine-steps/{three}", headers=admin.headers)
 
-    logs = client.get(f"{API}/admin/audit-logs?limit=200", headers=admin.headers).json()
+    logs = client.get(f"{API}/admin/audit-logs?limit=100", headers=admin.headers).json()["events"]
+    stored = db.query(AdminAuditLog).all()
 
     actions = {entry["action"] for entry in logs}
     assert {"routine.create", "routine.update", "routine_step.create", "routine_step.update",
             "routine_step.reorder", "routine_step.delete"} <= actions
-    assert all(len(entry["entity_id"]) <= 64 for entry in logs)
+    assert all(len(row.entity_id) <= 64 for row in stored)
+    assert all("{" not in entry["phrase"] for entry in logs)

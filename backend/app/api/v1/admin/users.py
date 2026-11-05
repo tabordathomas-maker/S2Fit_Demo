@@ -4,13 +4,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Query, UploadFile
 from sqlalchemy import or_, select
-from sqlalchemy.orm import selectinload
 
 from app.api.deps import AdminUser, DbSession
 from app.core import clock
-from app.models import AdminAuditLog, Profile, Subscription
+from app.models import Profile, Subscription
 from app.models.enums import SubscriptionStatus
-from app.schemas.admin import AuditLogOut, MediaUploadResult, UploadResult
+from app.schemas.admin import MediaUploadResult, UploadResult
 from app.schemas.profile import AdminProfileOut, ProfileOut
 from app.services import audit, storage
 
@@ -44,33 +43,6 @@ def list_profiles(
     return [
         {**ProfileOut.model_validate(p).model_dump(), "plus_status": plus_status_of(st, ends, now), "plus_ends_at": ends}
         for p, st, ends in rows
-    ]
-
-
-@router.get("/audit-logs", response_model=list[AuditLogOut])
-def list_audit_logs(
-    _: AdminUser,
-    db: DbSession,
-    action: Annotated[str | None, Query(max_length=80)] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 100,
-    offset: Annotated[int, Query(ge=0)] = 0,
-):
-    stmt = select(AdminAuditLog).options(selectinload(AdminAuditLog.admin))
-    if action:
-        stmt = stmt.where(AdminAuditLog.action == action)
-    rows = db.scalars(stmt.order_by(AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc()).limit(limit).offset(offset))
-    return [
-        {
-            "id": log.id,
-            "admin_id": log.admin_id,
-            "admin_email": log.admin.email,
-            "action": log.action,
-            "entity_type": log.entity_type,
-            "entity_id": log.entity_id,
-            "details": log.details,
-            "created_at": log.created_at,
-        }
-        for log in rows
     ]
 
 

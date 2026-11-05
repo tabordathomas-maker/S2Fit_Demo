@@ -13,12 +13,13 @@ def test_admin_actions_are_recorded_and_listed(client, db):
                 headers=admin.headers)
     client.post("/api/v1/admin/plans", json={"code": "plus-anual", "name": "S2 Plus anual", "duration_days": 365},
                 headers=admin.headers)
-    logs = client.get("/api/v1/admin/audit-logs", headers=admin.headers).json()
+    logs = client.get("/api/v1/admin/audit-logs", headers=admin.headers).json()["events"]
 
     # Assert
     assert [log["action"] for log in logs] == ["plan.create", "variant.stock_adjust"]
-    assert logs[1]["details"]["delta"] == 4
-    assert logs[1]["admin_email"] == admin.email
+    assert logs[0]["phrase"].startswith("creó el plan «S2 Plus anual»")
+    assert logs[1]["phrase"].startswith("ajustó el stock de ") and "1 → 5" in logs[1]["phrase"]
+    assert logs[1]["admin"] == "Admin Pruebas"
 
 
 def test_failed_admin_action_leaves_no_audit_entry(client, db):
@@ -33,7 +34,7 @@ def test_failed_admin_action_leaves_no_audit_entry(client, db):
 
     # Assert
     assert response.status_code == 409
-    assert logs == []
+    assert logs == {"total": 0, "events": []}
 
 
 def test_customers_cannot_read_audit_logs(client):
