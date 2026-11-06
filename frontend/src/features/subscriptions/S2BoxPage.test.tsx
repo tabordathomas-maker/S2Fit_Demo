@@ -7,7 +7,7 @@ import type { MembershipStatus, Plan, SubscriptionRequestCreated } from "../../s
 import { navigation } from "../../services/whatsapp";
 import { customerProfile, renderWithProviders, signedInAuth } from "../../test/utils";
 import { S2BOX } from "../../content/s2box";
-import { s2boxApi, type BoxImage } from "../s2box/api";
+import { s2boxApi, type MysteryBoxCover } from "../s2box/api";
 import { PENDING_PLAN_KEY, subscriptionsApi } from "./api";
 import { S2BoxPage } from "./S2BoxPage";
 
@@ -22,7 +22,6 @@ describe("S2BoxPage", () => {
     config.whatsappNumber = "573001234567";
     vi.spyOn(subscriptionsApi, "plans").mockResolvedValue([plan]);
     vi.spyOn(subscriptionsApi, "membership").mockResolvedValue(noMembership);
-    vi.spyOn(s2boxApi, "images").mockResolvedValue([]);
     vi.spyOn(s2boxApi, "boxes").mockResolvedValue([]);
   });
   afterEach(() => vi.restoreAllMocks());
@@ -106,11 +105,6 @@ describe("S2BoxPage", () => {
   });
 
   describe("secciones de S2 Box", () => {
-    const images: BoxImage[] = [
-      { id: 1, url: "https://x.supabase.co/s2box/a.jpg", alt_text: "Caja abierta", sort_order: 0 },
-      { id: 2, url: "https://x.supabase.co/s2box/b.jpg", alt_text: null, sort_order: 1 },
-    ];
-
     it("muestra el hero, los beneficios y la sección de planes", async () => {
       renderWithProviders(<S2BoxPage />);
 
@@ -127,48 +121,27 @@ describe("S2BoxPage", () => {
       expect(screen.getByText(S2BOX.note)).toBeInTheDocument();
     });
 
-    it("muestra la galería con las imágenes de la API, con alt_text y carga diferida", async () => {
-      vi.spyOn(s2boxApi, "images").mockResolvedValue(images);
+    it("ya no muestra la galería «Así se ve tu caja»", async () => {
       renderWithProviders(<S2BoxPage />);
 
-      const photo = await screen.findByRole("img", { name: "Caja abierta" });
-      expect(photo).toHaveAttribute("loading", "lazy");
-      expect(photo).toHaveAttribute("src", images[0].url);
-      expect(screen.getAllByRole("button", { name: /Ampliar imagen/ })).toHaveLength(2);
+      await screen.findByRole("heading", { name: "S2 Box mensual" });
+      expect(screen.queryByText("Así se ve tu caja")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Ampliar imagen/ })).not.toBeInTheDocument();
     });
 
-    it("con la galería vacía muestra el mensaje y ningún error", async () => {
+    it("muestra las cajas cuando la API las devuelve, entre los beneficios y los planes", async () => {
+      const box: MysteryBoxCover = {
+        id: 5, title: "Caja Soul", teaser: "Una sorpresa", cover_url: "https://x.supabase.co/s2box/a.jpg",
+        cover_alt: "Caja cerrada", content_access: "free",
+      } as MysteryBoxCover;
+      vi.spyOn(s2boxApi, "boxes").mockResolvedValue([box]);
       renderWithProviders(<S2BoxPage />);
 
-      expect(await screen.findByText(S2BOX.galleryEmpty)).toBeInTheDocument();
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    });
-
-    it("el modal de la imagen abre al pulsar, atrapa el foco y cierra con Esc", async () => {
-      vi.spyOn(s2boxApi, "images").mockResolvedValue(images);
-      renderWithProviders(<S2BoxPage />);
-
-      await userEvent.click(await screen.findByRole("button", { name: "Ampliar imagen: Caja abierta" }));
-
-      const dialog = screen.getByRole("dialog", { name: "Caja abierta" });
-      expect(dialog).toHaveAttribute("aria-modal", "true");
-      const close = screen.getByRole("button", { name: "Cerrar" });
-      expect(close).toHaveFocus();
-      await userEvent.tab();
-      expect(close).toHaveFocus();
-
-      await userEvent.keyboard("{Escape}");
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-
-    it("el modal también cierra con el botón Cerrar", async () => {
-      vi.spyOn(s2boxApi, "images").mockResolvedValue(images);
-      renderWithProviders(<S2BoxPage />);
-
-      await userEvent.click(await screen.findByRole("button", { name: "Ampliar imagen: Caja abierta" }));
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
-
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      const boxTitle = await screen.findByRole("heading", { name: "Caja Soul" });
+      const benefits = screen.getByRole("heading", { name: "¿Qué trae tu S2 Box?" });
+      const plans = screen.getByRole("heading", { name: "Planes" });
+      expect(benefits.compareDocumentPosition(boxTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(boxTitle.compareDocumentPosition(plans) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   });
 });

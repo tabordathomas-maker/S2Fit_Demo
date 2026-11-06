@@ -4,7 +4,6 @@ from app.api.v1 import catalog, challenges, content, habits, me, mi_ruta, notifi
 from app.api.v1.admin import access_codes as admin_access_codes
 from app.api.v1.admin import audit as admin_audit
 from app.api.v1.admin import box_claims as admin_box_claims
-from app.api.v1.admin import box_images as admin_box_images
 from app.api.v1.admin import catalog as admin_catalog
 from app.api.v1.admin import memberships as admin_memberships
 from app.api.v1.admin import mystery_boxes as admin_mystery_boxes
@@ -20,6 +19,6 @@ for module in (catalog, me, orders, subscriptions, content, habits, challenges, 
 
 # Cada endpoint administrativo declara AdminUser, que exige el rol "admin" en el backend.
 admin_router = APIRouter(prefix="/admin")
-for module in (admin_catalog, admin_sales, admin_memberships, admin_wellness, admin_users, admin_settings, admin_routines, admin_box_images, admin_box_claims, admin_mystery_boxes, admin_audit, admin_access_codes):
+for module in (admin_catalog, admin_sales, admin_memberships, admin_wellness, admin_users, admin_settings, admin_routines, admin_box_claims, admin_mystery_boxes, admin_audit, admin_access_codes):
     admin_router.include_router(module.router)
 api_router.include_router(admin_router)

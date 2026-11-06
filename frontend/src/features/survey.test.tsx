@@ -148,7 +148,6 @@ describe("S2 Box para la encuesta", () => {
   beforeEach(() => {
     config.whatsappNumber = "573001234567";
     vi.spyOn(subscriptionsApi, "membership").mockResolvedValue({ is_active: false, subscription: null, pending_request: null });
-    vi.spyOn(s2boxApi, "images").mockResolvedValue([]);
     vi.spyOn(s2boxApi, "boxes").mockResolvedValue([]);
   });
   afterEach(() => vi.restoreAllMocks());

@@ -4,7 +4,6 @@ from app.models.access_codes import AccessCode
 from app.models.audit import AdminAuditLog
 from app.models.base import Base
 from app.models.box_claims import BoxClaim
-from app.models.box_images import BoxImage
 from app.models.catalog import Category, InventoryMovement, Product, ProductVariant
 from app.models.content import ContentItem
 from app.models.mystery_boxes import MysteryBox
@@ -28,7 +27,6 @@ __all__ = [
     "AdminAuditLog",
     "Base",
     "BoxClaim",
-    "BoxImage",
     "Category",
     "Challenge",
     "ChallengeParticipation",

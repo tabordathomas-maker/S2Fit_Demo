@@ -1,6 +1,6 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-import { Badge, Button } from "../../components/ui";
+import { Alert, Badge, Button } from "../../components/ui";
 import { S2BOX_BOXES } from "../../content/s2box";
 import { useAsync } from "../../services/useAsync";
 import { useAuth } from "../auth/AuthProvider";
@@ -14,12 +14,30 @@ export interface MembershipState {
 
 /** Tarjetas de cajas misteriosas: la portada es pública; abrir la caja depende del acceso. */
 export function MysteryBoxes({ membership, onNeedMembership }: { membership: MembershipState; onNeedMembership: () => void }) {
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
   const navigate = useNavigate();
   const boxes = useAsync(() => s2boxApi.boxes(), []);
   const list = boxes.data ?? [];
-  // Sin cajas (o sin conexión) la sección no se muestra y la página sigue igual que antes.
-  if (list.length === 0) return null;
+  if (list.length === 0) {
+    // Al público no se le muestra nada; quien administra necesita saber por qué no hay cajas.
+    if (!isAdmin || boxes.loading) return null;
+    return (
+      <section className="py-[72px]" aria-label="Cajas S2 Box">
+        <div className="wrap">
+          <Alert tone={boxes.error ? "error" : "info"}>
+            {boxes.error ? (
+              boxes.error
+            ) : (
+              <>
+                Aún no hay cajas activas. Créalas en{" "}
+                <Link to="/admin?tab=cajas" className="font-bold text-burgundy underline">Admin → Cajas S2 Box</Link>
+              </>
+            )}
+          </Alert>
+        </div>
+      </section>
+    );
+  }
 
   const open = (box: MysteryBoxCover) => {
     if (box.content_access === "free") {

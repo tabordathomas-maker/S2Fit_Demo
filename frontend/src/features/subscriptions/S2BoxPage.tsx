@@ -11,7 +11,6 @@ import { buildWhatsAppUrl, navigation } from "../../services/whatsapp";
 import { useAuth } from "../auth/AuthProvider";
 import { WhatsAppHandoff } from "../orders/WhatsAppHandoff";
 import { BenefitIcon } from "../s2box/BenefitIcon";
-import { BoxGallery } from "../s2box/BoxGallery";
 import { MysteryBoxes } from "../s2box/MysteryBoxes";
 import { PENDING_PLAN_KEY, subscriptionsApi } from "./api";
 import { MembershipCard, needsRenewal } from "./MembershipCard";
@@ -130,12 +129,6 @@ export function S2BoxPage() {
       </section>
 
       <MysteryBoxes membership={{ loading: Boolean(session) && membership.loading, active: isActive }} onNeedMembership={needMembership} />
-
-      <section className="bg-cream py-[72px]" aria-label="Galería de la caja">
-        <div className="wrap">
-          <BoxGallery />
-        </div>
-      </section>
 
       <section id={PLANS_ID} className="py-[72px]" aria-labelledby="plans-title">
         <div className="wrap flex flex-col gap-8">

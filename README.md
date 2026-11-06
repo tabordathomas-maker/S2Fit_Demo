@@ -378,7 +378,7 @@ El script usa la misma lógica que el panel, pero actúa como «sistema»: no de
 
 ### Suscripción S2 Box
 
-La página **S2 Box** (`/s2-box`; los enlaces viejos `/s2-plus` y `/plus` redirigen) tiene tres apartados: planes, galería de la caja y beneficios (texto fijo en `frontend/src/content/s2box.ts`). La galería se administra en *Admin → S2 Box → Galería de la caja* (tabla `box_images`, endpoints `GET /api/v1/s2box/images` y `/api/v1/admin/s2box/images`).
+La página **S2 Box** (`/s2-box`; los enlaces viejos `/s2-plus` y `/plus` redirigen) tiene cuatro apartados: beneficios (texto fijo en `frontend/src/content/s2box.ts`), cajas, planes y nota. La antigua galería de fotos se eliminó (migración 0012): las cajas la reemplazan.
 
 **Cajas S2 Box.** Tabla `mystery_boxes` (RLS activo y sin políticas de lectura pública). `GET /api/v1/s2box/boxes` devuelve solo la portada (título, texto corto, imagen); el contenido (`content_media_url`, `content_description`) sale únicamente por `GET /api/v1/s2box/boxes/{id}/content`, que verifica el acceso en el backend: `free` para cualquiera, `plus` solo con `has_active_membership` (sin sesión: 403 `membership_required` con `login_required`). El admin las gestiona en *Admin → Cajas S2 Box* (`/api/v1/admin/s2box/boxes`); eliminar una caja sin reclamos la borra y con reclamos la oculta (eliminación lógica). Fotos recomendadas: vertical 4:5 (1080 × 1350 px).
 

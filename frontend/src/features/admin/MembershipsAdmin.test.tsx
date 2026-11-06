@@ -27,6 +27,15 @@ describe("MembershipsAdmin · activar S2 Box manualmente", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
+  it("no tiene la galería de la caja y avisa que las cajas se crean en la pestaña Cajas S2 Box", async () => {
+    renderWithProviders(<MembershipsAdmin />);
+
+    expect(await screen.findByText(/Las cajas misteriosas \(portada, contenido y reclamos\) se crean en la pestaña Cajas S2 Box/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ir a Cajas S2 Box" })).toBeInTheDocument();
+    expect(screen.queryByText("Galería de la caja")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Subir imagen/)).not.toBeInTheDocument();
+  });
+
   it("al buscar a una persona muestra su estado de S2 Box", async () => {
     vi.mocked(adminApi.profiles).mockResolvedValue([
       laura,

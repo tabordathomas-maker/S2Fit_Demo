@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models import (
-    AdminAuditLog, BoxImage, MysteryBox, Category, Challenge, ContentItem, CustomRoutine, Order, Payment, Plan, Product,
+    AdminAuditLog, MysteryBox, Category, Challenge, ContentItem, CustomRoutine, Order, Payment, Plan, Product,
     ProductVariant, Profile, Reward, RewardRedemption, RoutineStep, Subscription, SubscriptionRequest,
 )
 
@@ -236,9 +236,6 @@ class Resolver:
                     if type_ == "routine":
                         ent.user_id = obj.user_id
                     self._put(ent)
-        if ids := _ints(wanted.get("box_image", ())):
-            for img in db.scalars(select(BoxImage).where(BoxImage.id.in_(ids))):
-                self._put(Ent("box_image", str(img.id), img.alt_text or f"foto #{img.id}"))
         if ids := _ints(wanted.get("mystery_box", ())):
             for box in db.scalars(select(MysteryBox).where(MysteryBox.id.in_(ids))):
                 self._put(Ent("mystery_box", str(box.id), box.title))
@@ -279,6 +276,9 @@ class Resolver:
         if d.get("user_id"):
             parsed = _uuids([str(d["user_id"])])
             user_id = parsed[0] if parsed else None
+        if name is None and log.entity_type == "box_image":
+            # La galería ya no existe: los eventos viejos se nombran con su número.
+            name = f"foto #{log.entity_id}"
         return Ent(log.entity_type, log.entity_id, name or "(eliminado)", ref=d.get("reference") or d.get("operation_reference"),
                    amount=d.get("amount"), user_id=user_id, exists=False)
 

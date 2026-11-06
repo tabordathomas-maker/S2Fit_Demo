@@ -71,7 +71,7 @@ def upload_product_image(content: bytes, content_type: str) -> str:
 
 
 def upload_box_image(content: bytes, content_type: str) -> str:
-    """Imagen de la galería de S2 Box (carpeta "s2box/" del bucket)."""
+    """Portada de una caja de S2 Box (carpeta "s2box/" del bucket)."""
     _ensure_configured()
     extension = IMAGE_TYPES.get(content_type)
     if extension is None:

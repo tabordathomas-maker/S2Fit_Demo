@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { DeleteDialog } from "../../components/admin/DeleteDialog";
 import { diffPatch } from "../../components/admin/patch";
@@ -12,7 +13,6 @@ import { formatPhone } from "../../services/phone";
 import type { Plan } from "../../services/types";
 import { useAsync } from "../../services/useAsync";
 import { adminApi, type AdminSubscription, type AdminSubscriptionRequest } from "./api";
-import { BoxGalleryAdmin } from "./BoxGalleryAdmin";
 import { ManualMembership } from "./ManualMembership";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -45,6 +45,7 @@ function expiryText(left: number): string {
 }
 
 export function MembershipsAdmin() {
+  const [, setParams] = useSearchParams();
   const [showArchived, setShowArchived] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [creatingPlan, setCreatingPlan] = useState(false);
@@ -186,7 +187,12 @@ export function MembershipsAdmin() {
 
       <ManualMembership plans={plans.data} onChanged={() => void subs.reload()} />
 
-      <BoxGalleryAdmin />
+      <Alert tone="info">
+        Las cajas misteriosas (portada, contenido y reclamos) se crean en la pestaña Cajas S2 Box.{" "}
+        <button type="button" className="font-bold text-burgundy underline" onClick={() => setParams({ tab: "cajas" })}>
+          Ir a Cajas S2 Box
+        </button>
+      </Alert>
 
       <section className="flex flex-col gap-4">
         <h3 className="text-2xl">Solicitudes pendientes</h3>

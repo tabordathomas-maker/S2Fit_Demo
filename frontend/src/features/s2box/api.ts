@@ -1,18 +1,5 @@
 import { apiFetch } from "../../services/api";
 
-export interface BoxImage {
-  id: number;
-  url: string;
-  alt_text: string | null;
-  sort_order: number;
-}
-
-export interface AdminBoxImage extends BoxImage {
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export type BoxAccess = "free" | "plus";
 export type ClaimStatus = "pending" | "accepted" | "rejected";
 
@@ -89,7 +76,6 @@ const ADMIN = "/api/v1/admin";
 const PUBLIC = "/api/v1/s2box";
 
 export const s2boxApi = {
-  images: () => apiFetch<BoxImage[]>(`${PUBLIC}/images`),
   boxes: () => apiFetch<MysteryBoxCover[]>(`${PUBLIC}/boxes`),
   boxContent: (id: number) => apiFetch<MysteryBoxContent>(`${PUBLIC}/boxes/${id}/content`),
   /** Registra el reclamo en el servidor ANTES de abrir WhatsApp. */
@@ -98,12 +84,7 @@ export const s2boxApi = {
 };
 
 export const s2boxAdminApi = {
-  list: () => apiFetch<AdminBoxImage[]>(`${ADMIN}/s2box/images`),
-  create: (body: { url: string; alt_text?: string | null; sort_order?: number; is_active?: boolean }) =>
-    apiFetch<AdminBoxImage>(`${ADMIN}/s2box/images`, { method: "POST", body }),
-  update: (id: number, body: { url?: string; alt_text?: string | null; sort_order?: number; is_active?: boolean }) =>
-    apiFetch<AdminBoxImage>(`${ADMIN}/s2box/images/${id}`, { method: "PATCH", body }),
-  remove: (id: number) => apiFetch<void>(`${ADMIN}/s2box/images/${id}`, { method: "DELETE" }),
+  /** Sube la portada de una caja; la URL se guarda al crear o editar la caja. */
   upload: (file: File) => {
     const form = new FormData();
     form.append("file", file);

@@ -110,6 +110,29 @@ describe("MysteryBoxes (portadas en /s2-box)", () => {
 
     expect(container.querySelector("section")).toBeNull();
   });
+
+  const adminAuth = () => signedInAuth({ ...signedInAuth().profile!, role: "admin" });
+
+  it("administrador sin cajas activas ve el aviso con el enlace a Cajas S2 Box", async () => {
+    vi.spyOn(s2boxApi, "boxes").mockResolvedValue([]);
+    renderApp(<MysteryBoxes membership={{ loading: false, active: false }} onNeedMembership={vi.fn()} />, { auth: adminAuth() });
+
+    expect(await screen.findByText(/Aún no hay cajas activas/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Admin → Cajas S2 Box" })).toHaveAttribute("href", "/admin?tab=cajas");
+  });
+
+  it("administrador con la API caída ve el mensaje del error; la clienta no ve nada", async () => {
+    vi.spyOn(s2boxApi, "boxes").mockRejectedValue(new ApiError(500, "internal_error", "Falló la carga de cajas"));
+    const admin = renderApp(<MysteryBoxes membership={{ loading: false, active: false }} onNeedMembership={vi.fn()} />, { auth: adminAuth() });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Falló la carga de cajas");
+    admin.unmount();
+
+    const customer = renderApp(<MysteryBoxes membership={{ loading: false, active: false }} onNeedMembership={vi.fn()} />, { auth: signedInAuth() });
+    await waitFor(() => expect(s2boxApi.boxes).toHaveBeenCalledTimes(2));
+    expect(customer.container.querySelector("section")).toBeNull();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
 
 describe("S2BoxOpenPage", () => {

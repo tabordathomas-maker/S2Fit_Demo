@@ -1,4 +1,4 @@
-/** Contenido fijo de la página S2 Box. Edita aquí los textos; la galería y los planes vienen del panel. */
+/** Contenido fijo de la página S2 Box. Edita aquí los textos; las cajas y los planes vienen del panel. */
 
 export type BenefitIcon = "shirt" | "gift" | "sachet" | "card";
 
@@ -30,8 +30,6 @@ export const S2BOX = {
     },
   ] satisfies BoxBenefit[],
   cta: "Descubre todo lo que hay en tu S2 Box",
-  galleryTitle: "Así se ve tu caja",
-  galleryEmpty: "Muy pronto verás aquí nuestras cajas",
   plansTitle: "Planes",
   note: "El contenido sorpresa puede variar en cada caja.",
 };

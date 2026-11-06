@@ -3,17 +3,10 @@ from fastapi import APIRouter, Response, status
 from app.api.deps import CurrentUser, DbSession, OptionalUser, rate_limited
 from app.core import clock
 from app.schemas.box_claims import BoxClaimCreate, BoxClaimCreated, BoxClaimOut
-from app.schemas.box_images import BoxImageOut
 from app.schemas.mystery_boxes import MysteryBoxContent, MysteryBoxPublic
-from app.services import box_claims, box_images, mystery_boxes
+from app.services import box_claims, mystery_boxes
 
 router = APIRouter(prefix="/s2box", tags=["S2 Box"])
-
-
-@router.get("/images", response_model=list[BoxImageOut])
-def list_images(db: DbSession):
-    """Galería pública: solo las imágenes activas, por orden."""
-    return box_images.list_public(db)
 
 
 @router.get("/boxes", response_model=list[MysteryBoxPublic])
