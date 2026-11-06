@@ -55,7 +55,7 @@ export function CartPage() {
             title="¡Pedido creado!"
             reference={order.reference}
             message={order.whatsapp_message}
-            note="Tu prenda llegará con su QR para Mi Ruta."
+            note="Cuando confirmemos tu pago se habilita tu sección Mi Ruta, y tu prenda llegará con un código o QR."
             detail={`Total: ${formatCOP(order.total)}. Reservamos tus prendas mientras acordamos el pago por WhatsApp.`}
           />
           <div className="mt-6 flex flex-wrap gap-3">

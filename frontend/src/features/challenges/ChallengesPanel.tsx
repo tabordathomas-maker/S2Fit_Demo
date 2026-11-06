@@ -5,7 +5,7 @@ import { errorMessage } from "../../services/api";
 import type { ChallengesSummary } from "../../services/types";
 import { challengesApi } from "./api";
 
-/** Lista de retos (todos gratis) con unirse / registrar avance del día. */
+/** Lista de retos con unirse / registrar avance del día. */
 export function ChallengesPanel({
   data,
   onUpdate,

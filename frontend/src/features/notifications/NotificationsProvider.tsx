@@ -10,11 +10,13 @@ const NOUNS: Record<NotificationItem["kind"], { noun: string; feminine: boolean 
   order: { noun: "pedido", feminine: false },
   subscription: { noun: "solicitud de membresía", feminine: true },
   box_claim: { noun: "reclamo de S2 Box", feminine: false },
+  mi_ruta: { noun: "sección Mi Ruta", feminine: true },
 };
 
 /** Texto del aviso flotante. Al cliente le dice qué pasó; al admin, qué llegó. */
 export function toastText(item: NotificationItem, isAdmin: boolean): string {
   if (isAdmin) return `${item.title} ${item.reference}`;
+  if (item.kind === "mi_ruta") return item.title;
   const { noun, feminine } = NOUNS[item.kind];
   const verb = item.status_label.toLowerCase().replace(/o$/, feminine ? "a" : "o");
   return `Tu ${noun} ${item.reference} fue ${verb}`;

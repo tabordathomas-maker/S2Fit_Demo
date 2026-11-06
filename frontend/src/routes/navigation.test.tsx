@@ -7,6 +7,7 @@ import { AuthContext, type AuthContextValue } from "../features/auth/AuthProvide
 import { CartProvider } from "../features/cart/CartProvider";
 import { catalogApi } from "../features/catalog/api";
 import { contentApi } from "../features/content/api";
+import { miRutaApi } from "../features/mi-ruta/api";
 import { customerProfile, fakeAuth, signedInAuth } from "../test/utils";
 
 function renderApp(route: string, auth: AuthContextValue = fakeAuth()) {
@@ -26,6 +27,7 @@ describe("Navegación", () => {
     vi.spyOn(catalogApi, "products").mockResolvedValue([]);
     vi.spyOn(catalogApi, "categories").mockResolvedValue([]);
     vi.spyOn(contentApi, "list").mockResolvedValue([]);
+    vi.spyOn(miRutaApi, "access").mockResolvedValue({ has_access: true, source: "order" });
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -33,7 +35,7 @@ describe("Navegación", () => {
     renderApp("/");
     expect(screen.getByRole("heading", { name: "Ropa para moverte, hábitos para crecer" })).toBeInTheDocument();
 
-    await userEvent.click(screen.getAllByRole("link", { name: "Mi Ruta" })[0]);
+    await userEvent.click((await screen.findAllByRole("link", { name: "Mi Ruta" }))[0]);
 
     expect(await screen.findByRole("heading", { name: "Mi Ruta S2" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Crear cuenta gratis" })).toBeInTheDocument();

@@ -34,7 +34,7 @@ from app.core import clock  # noqa: E402
 from app.core.database import SessionLocal, engine  # noqa: E402
 from app.core.rate_limit import reset_rate_limits  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Base  # noqa: E402
+from app.models import AccessCode, Base  # noqa: E402
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -70,10 +70,27 @@ def clean_tables():
         conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 
 
+ACCESS_CODE = "TESTAC"
+
+
 @pytest.fixture
-def client():
+def locked_client():
+    """Cliente sin acceso a Mi Ruta: ni código ni cuenta habilitada."""
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture
+def client(locked_client):
+    """Cliente con acceso a Mi Ruta (un código válido en X-MiRuta-Code), para las pruebas de contenido, hábitos y retos.
+
+    Las pruebas del bloqueo en sí usan locked_client (tests/test_mi_ruta_access.py).
+    """
+    with SessionLocal() as session:
+        session.add(AccessCode(code=ACCESS_CODE))
+        session.commit()
+    locked_client.headers["X-MiRuta-Code"] = ACCESS_CODE
+    return locked_client
 
 
 @pytest.fixture

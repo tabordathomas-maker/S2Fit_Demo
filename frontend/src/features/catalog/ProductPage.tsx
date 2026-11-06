@@ -77,8 +77,8 @@ function ProductView({ product }: { product: ProductDetail }) {
           />
           <div className="flex flex-col gap-1 text-sm">
             <h2 className="font-display text-lg text-burgundy">Incluye QR a Mi Ruta</h2>
-            <p>Cada prenda trae un QR para entrar gratis a rutinas, recetas y tu panel de hábitos.</p>
-            <Link to="/mi-ruta" className="inline-flex min-h-11 items-center font-bold text-burgundy underline">Ver Mi Ruta</Link>
+            <p>Al comprar recibes un código o QR para entrar a Mi Ruta.</p>
+            <Link to="/mi-ruta" className="inline-flex min-h-11 items-center font-bold text-burgundy underline">¿Tienes un código?</Link>
           </div>
         </aside>
 

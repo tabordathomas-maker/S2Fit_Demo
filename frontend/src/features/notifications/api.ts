@@ -1,6 +1,6 @@
 import { apiFetch } from "../../services/api";
 
-export type NotificationKind = "order" | "subscription" | "box_claim";
+export type NotificationKind = "order" | "subscription" | "box_claim" | "mi_ruta";
 export type NotificationStatus = "pending" | "accepted" | "rejected";
 
 export interface NotificationItem {

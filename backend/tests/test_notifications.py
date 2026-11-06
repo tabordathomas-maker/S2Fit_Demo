@@ -44,7 +44,7 @@ def test_customer_sees_confirmed_order_as_accepted_and_unread(client, db, frozen
     assert (item["id"], item["status"], item["status_label"], item["unread"]) == (
         f"order:{order['reference']}", "accepted", "Aceptado", True)
     assert item["link"] == "/pedidos"
-    assert feed["unread_count"] == 1
+    assert feed["unread_count"] == 2  # el pedido y el aviso de Mi Ruta habilitada
 
 
 def test_customer_sees_rejected_payment_as_cancelled_order(client, db, frozen_clock):
@@ -66,7 +66,7 @@ def test_seen_resets_customer_unread_count(client, db, frozen_clock):
     admin, user, order, payment = _order_with_payment(client, db)
     frozen_clock.advance(minutes=5)
     client.post(f"/api/v1/admin/payments/{payment['id']}/confirm", json=_confirm_body(order), headers=admin.headers)
-    assert _feed(client, user)["unread_count"] == 1
+    assert _feed(client, user)["unread_count"] == 2  # el pedido y el aviso de Mi Ruta habilitada
 
     # Act
     seen = client.post("/api/v1/notifications/seen", headers=user.headers)

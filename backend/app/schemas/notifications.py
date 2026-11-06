@@ -3,7 +3,7 @@ from typing import Literal
 
 from app.schemas.common import ORMModel
 
-NotificationKind = Literal["order", "subscription", "box_claim"]
+NotificationKind = Literal["order", "subscription", "box_claim", "mi_ruta"]
 NotificationStatus = Literal["pending", "accepted", "rejected"]
 
 

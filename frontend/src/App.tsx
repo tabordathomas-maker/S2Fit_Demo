@@ -9,6 +9,7 @@ import { CartPage } from "./features/cart/CartPage";
 import { CartProvider } from "./features/cart/CartProvider";
 import { ProductPage } from "./features/catalog/ProductPage";
 import { ShopPage } from "./features/catalog/ShopPage";
+import { MiRutaAccessPage } from "./features/mi-ruta/MiRutaAccessPage";
 import { OrdersPage } from "./features/orders/OrdersPage";
 import { S2BoxOpenPage } from "./features/s2box/S2BoxOpenPage";
 import { S2BoxPage } from "./features/subscriptions/S2BoxPage";
@@ -30,6 +31,7 @@ export function AppRoutes() {
         <Route path="tienda/:slug" element={<ProductPage />} />
         <Route path="carrito" element={<CartPage />} />
         <Route path="mi-ruta" element={<MiRutaPage />} />
+        <Route path="mi-ruta/acceso/:code" element={<MiRutaAccessPage />} />
         <Route path="s2-box" element={<S2BoxPage />} />
         <Route path="s2-box/caja/:id" element={<S2BoxOpenPage />} />
         {/* Enlaces antiguos de S2 Plus */}

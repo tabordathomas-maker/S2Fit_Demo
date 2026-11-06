@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Alert, Pill, SectionTitle } from "../../components/ui";
 import { useAsync } from "../../services/useAsync";
 import { adminApi } from "./api";
+import { AccessCodesAdmin } from "./AccessCodesAdmin";
 import { CatalogAdmin } from "./CatalogAdmin";
 import { ContentAdmin } from "./ContentAdmin";
 import { MembershipsAdmin } from "./MembershipsAdmin";
@@ -21,6 +22,7 @@ const TABS = [
   { id: "cajas", label: "Cajas S2 Box", component: MysteryBoxesAdmin },
   { id: "contenido", label: "Contenido y retos", component: ContentAdmin },
   { id: "rutinas", label: "Rutinas personalizadas", component: RoutinesAdmin },
+  { id: "codigos", label: "Códigos y QR", component: AccessCodesAdmin },
   { id: "usuarios", label: "Usuarios y auditoría", component: UsersAdmin },
   { id: "configuracion", label: "Configuración", component: SettingsAdmin },
 ];

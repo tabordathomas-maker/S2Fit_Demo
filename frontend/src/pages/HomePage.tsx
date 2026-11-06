@@ -9,7 +9,7 @@ import { useAsync } from "../services/useAsync";
 
 const PILLARS = [
   { n: "01", t: "Tienda", d: "Conjuntos, leggings, tops y shorts seamless que se adaptan a tu cuerpo y a tu movimiento.", cta: "Comprar", to: "/tienda" },
-  { n: "02", t: "Mi Ruta (gratis)", d: "Rutinas, recetas y contenido de crecimiento personal, más tu panel de hábitos con descuentos.", cta: "Entrar", to: "/mi-ruta" },
+  { n: "02", t: "Mi Ruta", d: "Rutinas, recetas y contenido de crecimiento personal con el código de tu compra, más tu panel de hábitos con descuentos.", cta: "Entrar", to: "/mi-ruta" },
   { n: "03", t: "S2 Box", d: "Una caja sorpresa cada mes con tu prenda S2, suplementación y mucho más.", cta: "Descubrir", to: "/s2-box" },
 ];
 
@@ -59,7 +59,7 @@ export function HomePage() {
             </p>
             <div className="flex flex-wrap gap-3">
               <LinkButton to="/tienda" variant="dark">Ver la tienda</LinkButton>
-              <LinkButton to="/mi-ruta">Mi Ruta gratis</LinkButton>
+              <LinkButton to="/mi-ruta">Entrar a Mi Ruta</LinkButton>
             </div>
           </div>
           <img src={hero} alt="Mono negro S2 Fit" className="h-[420px] w-full rounded-[32px] object-cover object-top md:h-[540px]" />
@@ -85,9 +85,9 @@ export function HomePage() {
         <div className="wrap flex max-w-[760px] flex-col items-start gap-4">
           <h2 className="text-[clamp(28px,4vw,40px)]">Cada prenda trae un QR</h2>
           <p className="text-lg leading-relaxed text-beige">
-            Escanéalo y entra gratis a rutinas, recetas y contenido de crecimiento personal. Sin gym perfecto ni disciplina imposible: avanzas a tu ritmo.
+            Al comprar recibes un código o un QR: escanéalo y entra a rutinas, recetas y contenido de crecimiento personal. Sin gym perfecto ni disciplina imposible: avanzas a tu ritmo.
           </p>
-          <Link to="/mi-ruta" className={buttonClasses("light")}>Entrar a Mi Ruta</Link>
+          <Link to="/mi-ruta" className={buttonClasses("light")}>¿Tienes un código?</Link>
         </div>
       </section>
     </>

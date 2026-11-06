@@ -1,5 +1,6 @@
 """Perfiles, auditoría y subida de imágenes."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, File, Query, UploadFile
@@ -7,11 +8,13 @@ from sqlalchemy import or_, select
 
 from app.api.deps import AdminUser, DbSession
 from app.core import clock
+from app.core.errors import not_found
 from app.models import Profile, Subscription
 from app.models.enums import SubscriptionStatus
+from app.schemas.access_codes import MiRutaToggle
 from app.schemas.admin import MediaUploadResult, UploadResult
 from app.schemas.profile import AdminProfileOut, ProfileOut
-from app.services import audit, storage
+from app.services import audit, mi_ruta_access, storage
 
 router = APIRouter(tags=["admin: usuarios y auditoría"])
 
@@ -41,9 +44,26 @@ def list_profiles(
     rows = db.execute(stmt.order_by(Profile.created_at.desc()).limit(limit).offset(offset)).all()
     now = clock.now()
     return [
-        {**ProfileOut.model_validate(p).model_dump(), "plus_status": plus_status_of(st, ends, now), "plus_ends_at": ends}
+        {**ProfileOut.model_validate(p).model_dump(), "plus_status": plus_status_of(st, ends, now), "plus_ends_at": ends,
+         "mi_ruta_unlocked_at": p.mi_ruta_unlocked_at, "mi_ruta_unlock_source": p.mi_ruta_unlock_source}
         for p, st, ends in rows
     ]
+
+
+@router.post("/users/{user_id}/mi-ruta", response_model=AdminProfileOut)
+def set_user_mi_ruta(user_id: uuid.UUID, data: MiRutaToggle, admin: AdminUser, db: DbSession):
+    """Habilita o quita Mi Ruta a mano (por ejemplo para ventas fuera de la página)."""
+    profile = db.get(Profile, user_id)
+    if profile is None:
+        raise not_found("La persona no existe.")
+    now = clock.now()
+    mi_ruta_access.set_by_admin(db, admin, profile, data.enabled, now)
+    db.commit()
+    sub = db.execute(select(Subscription.status, Subscription.ends_at).where(Subscription.user_id == profile.id)).first()
+    status, ends = (sub.status, sub.ends_at) if sub else (None, None)
+    return {**ProfileOut.model_validate(profile).model_dump(), "plus_status": plus_status_of(status, ends, now),
+            "plus_ends_at": ends, "mi_ruta_unlocked_at": profile.mi_ruta_unlocked_at,
+            "mi_ruta_unlock_source": profile.mi_ruta_unlock_source}
 
 
 @router.post("/uploads/product-image", response_model=UploadResult)

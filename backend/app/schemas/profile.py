@@ -19,6 +19,8 @@ class ProfileOut(ORMModel):
 class AdminProfileOut(ProfileOut):
     plus_status: str
     plus_ends_at: datetime | None
+    mi_ruta_unlocked_at: datetime | None = None
+    mi_ruta_unlock_source: str | None = None
 
 
 class ProfileUpdate(InputModel):

@@ -11,7 +11,7 @@ const MEAL_SLOTS = [
   { slot: "snacks", label: "Snacks" },
 ];
 
-/** Alimentación diaria: una idea por franja del día. Es parte de Mi Ruta (gratis). */
+/** Alimentación diaria: una idea por franja del día. Es parte de Mi Ruta. */
 export function MealsPanel() {
   const meals = useAsync(() => contentApi.list("meal"), []);
   const [slot, setSlot] = useState("desayuno");

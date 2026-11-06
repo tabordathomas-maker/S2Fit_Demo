@@ -1,5 +1,6 @@
 """Importa todos los modelos para que SQLAlchemy y Alembic conozcan el esquema completo."""
 
+from app.models.access_codes import AccessCode
 from app.models.audit import AdminAuditLog
 from app.models.base import Base
 from app.models.box_claims import BoxClaim
@@ -23,6 +24,7 @@ from app.models.wellness import (
 )
 
 __all__ = [
+    "AccessCode",
     "AdminAuditLog",
     "Base",
     "BoxClaim",

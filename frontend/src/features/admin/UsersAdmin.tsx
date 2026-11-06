@@ -2,17 +2,37 @@ import { useEffect, useState } from "react";
 
 import { AuditEventCard } from "../../components/admin/AuditEventCard";
 import { ClientAuditCard } from "../../components/admin/ClientAuditCard";
+import { useNotice } from "../../components/admin/useNotice";
 import { Alert, Badge, Button, Field, Pill, Select, Spinner } from "../../components/ui";
 import { errorMessage } from "../../services/api";
 import { downloadCsv } from "../../services/csv";
 import { formatDateTime, plusStatusText } from "../../services/format";
 import { formatPhone } from "../../services/phone";
+import type { AdminProfile } from "../../services/types";
 import { useAsync } from "../../services/useAsync";
 import { adminApi, type AuditClient, type AuditEvent } from "./api";
 
 export function UsersAdmin() {
   const [q, setQ] = useState("");
   const profiles = useAsync(() => adminApi.profiles(q || undefined), [q]);
+  const { notice, success, fail, clear } = useNotice();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Habilita o quita Mi Ruta a mano (por ejemplo, ventas fuera de la página).
+  const toggleMiRuta = async (p: AdminProfile) => {
+    const enable = !p.mi_ruta_unlocked_at;
+    clear();
+    setBusyId(p.id);
+    try {
+      await adminApi.setMiRuta(p.id, enable);
+      success(enable ? "Mi Ruta habilitada." : "Mi Ruta quitada.");
+      await profiles.reload();
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -27,15 +47,25 @@ export function UsersAdmin() {
         </div>
         {profiles.loading && <Spinner />}
         {profiles.error && <Alert>{profiles.error}</Alert>}
+        {notice}
         <div className="overflow-x-auto rounded-3xl bg-white p-4">
-          <table className="w-full min-w-[680px] text-left text-sm">
-            <thead><tr className="border-b border-beige"><th className="py-2">Nombre</th><th>Correo</th><th>Celular</th><th>Rol</th><th>S2 Box</th><th>Registro</th></tr></thead>
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead><tr className="border-b border-beige"><th className="py-2">Nombre</th><th>Correo</th><th>Celular</th><th>Rol</th><th>S2 Box</th><th>Mi Ruta</th><th>Registro</th></tr></thead>
             <tbody>
               {profiles.data?.map((p) => (
                 <tr key={p.id} className="border-b border-beige/60">
                   <td className="py-2">{p.full_name ?? "—"}</td><td>{p.email}</td><td>{p.phone ? formatPhone(p.phone) : "—"}</td>
                   <td><Badge tone={p.role === "admin" ? "burgundy" : "beige"}>{p.role}</Badge></td>
                   <td>{plusStatusText(p.plus_status, p.plus_ends_at)}</td>
+                  <td>
+                    <Button
+                      aria-label={`${p.mi_ruta_unlocked_at ? "Quitar" : "Habilitar"} Mi Ruta a ${p.full_name ?? p.email ?? "esta persona"}`}
+                      disabled={busyId === p.id}
+                      onClick={() => void toggleMiRuta(p)}
+                    >
+                      {p.mi_ruta_unlocked_at ? "Quitar Mi Ruta" : "Habilitar Mi Ruta"}
+                    </Button>
+                  </td>
                   <td>{formatDateTime(p.created_at)}</td>
                 </tr>
               ))}

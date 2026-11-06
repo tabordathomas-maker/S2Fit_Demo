@@ -15,8 +15,8 @@ _lock = threading.Lock()
 _hits: dict[str, deque[float]] = defaultdict(deque)
 
 
-def check_rate_limit(bucket: str, key: str) -> None:
-    limit = get_settings().rate_limit_per_minute
+def check_rate_limit(bucket: str, key: str, limit: int | None = None) -> None:
+    limit = limit or get_settings().rate_limit_per_minute
     now = time.monotonic()
     with _lock:
         hits = _hits[f"{bucket}:{key}"]

@@ -23,7 +23,7 @@ from app.models.enums import (
     SubscriptionStatus,
 )
 from app.schemas.payments import PaymentConfirm, PaymentReject, PaymentRefund, PaymentReview, PaymentUpdate
-from app.services import audit, inventory, orders, subscriptions
+from app.services import audit, inventory, mi_ruta_access, orders, subscriptions
 from app.services.whatsapp import format_cop
 
 OPEN_STATUSES = {PaymentStatus.pending, PaymentStatus.in_review}
@@ -129,6 +129,7 @@ def confirm(db: Session, payment_id: uuid.UUID, admin: Profile, data: PaymentCon
         inventory.consume_reservation(db, order, admin.id)
         order.status = OrderStatus.paid
         order.paid_at = now
+        mi_ruta_access.unlock_by_order(db, order.user_id, now)
     else:
         if request.status != SubscriptionRequestStatus.pending_payment:
             raise conflict("request_not_pending", "La solicitud de suscripción no está pendiente de pago.")

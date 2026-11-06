@@ -1,4 +1,5 @@
 import { config } from "../config";
+import { clearStoredCode, getStoredCode, MI_RUTA_HEADER, notifyMiRutaAccessChanged } from "./miRutaAccess";
 import { retryPolicy } from "./retryPolicy";
 import { getAccessToken } from "./supabase";
 
@@ -102,6 +103,8 @@ async function attempt<T>(path: string, options: RequestOptions): Promise<T> {
   const headers: Record<string, string> = {};
   const token = await getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  const miRutaCode = getStoredCode();
+  if (miRutaCode) headers[MI_RUTA_HEADER] = miRutaCode;
 
   let body: BodyInit | undefined;
   if (options.formData) {
@@ -129,6 +132,11 @@ async function attempt<T>(path: string, options: RequestOptions): Promise<T> {
       details = data?.error?.details ?? {};
     } catch {
       // Respuesta sin JSON (por ejemplo, el servidor está despertando en Render).
+    }
+    if (code === "mi_ruta_locked") {
+      // El código guardado ya no vale (o se quitó el acceso): se olvida y la página vuelve a pedirlo.
+      if (miRutaCode) clearStoredCode();
+      else notifyMiRutaAccessChanged();
     }
     throw new ApiError(response.status, code, message, details);
   }

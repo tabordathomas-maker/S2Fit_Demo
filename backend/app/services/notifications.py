@@ -116,6 +116,13 @@ def _customer_feed(db: Session, user: Profile, now: datetime) -> list[Notificati
             title=_claim_title("Reclamo", claim), status=status, status_label=label, occurred_at=when,
             link="/s2-box", unread=status != "pending" and when > since,
         ))
+
+    if user.mi_ruta_unlocked_at is not None:
+        items.append(NotificationItem(
+            id="mi_ruta:unlocked", kind="mi_ruta", reference="MI-RUTA", title="Se habilitó tu sección Mi Ruta",
+            status="accepted", status_label="Habilitada", occurred_at=user.mi_ruta_unlocked_at, link="/mi-ruta",
+            unread=user.mi_ruta_unlocked_at > since,
+        ))
     return items
 
 

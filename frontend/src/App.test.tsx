@@ -13,7 +13,8 @@ function stubApi() {
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     let body: unknown = [];
-    if (url.includes("/api/v1/challenges")) body = { challenge_percent: 0, challenges: [] };
+    if (url.includes("/api/v1/mi-ruta/access")) body = { has_access: true, source: "order" };
+    else if (url.includes("/api/v1/challenges")) body = { challenge_percent: 0, challenges: [] };
     else if (url.includes("/api/v1/rewards")) body = { habit_percent: 0, challenge_percent: 0, rewards: [] };
     else if (url.includes("/api/v1/habits")) body = EMPTY_HABITS;
     else if (url.includes("/api/v1/settings")) body = { whatsapp_number: null };
@@ -65,10 +66,10 @@ describe("rutas y textos de S2 Box", () => {
     expect(container.textContent).not.toMatch(/S2 Plus/i);
   });
 
-  it("Mi Ruta es gratis: lo dice el encabezado y no hay candados ni llamados a una membresía", async () => {
+  it("Mi Ruta con acceso no tiene candados ni llamados a una membresía", async () => {
     const { container } = renderApp("/mi-ruta", signedInAuth(customerProfile));
 
-    expect(await screen.findByText("Gratis")).toBeInTheDocument();
+    expect(await screen.findByText("Clientas S2")).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(container.textContent).not.toMatch(/🔒|exclusiv|membres/i);
     expect(container.querySelector("main a[href='/s2-box']")).toBeNull();

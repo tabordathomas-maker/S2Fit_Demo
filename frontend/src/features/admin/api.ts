@@ -195,6 +195,28 @@ export interface AdminRoutineDetail extends AdminRoutine {
   steps: AdminRoutineStep[];
 }
 
+export interface AccessCode {
+  id: number;
+  code: string;
+  note: string | null;
+  phone: string | null;
+  is_active: boolean;
+  expires_at: string | null;
+  used_count: number;
+  last_used_at: string | null;
+  created_at: string;
+  status: "active" | "inactive" | "expired";
+  linked_email: string | null;
+  linked_name: string | null;
+}
+
+export interface AccessCodeInput {
+  quantity: number;
+  note: string | null;
+  phone: string | null;
+  expires_at: string | null;
+}
+
 const A = "/api/v1/admin";
 const post = <T,>(path: string, body?: unknown) => apiFetch<T>(A + path, { method: "POST", body });
 const patch = <T,>(path: string, body: unknown) => apiFetch<T>(A + path, { method: "PATCH", body });
@@ -312,6 +334,13 @@ export const adminApi = {
   routineProgress: (id: number) => apiFetch<RoutineDetail>(`${A}/routines/${id}/progress`),
 
   profiles: (q?: string) => apiFetch<AdminProfile[]>(`${A}/profiles`, { query: { q } }),
+  setMiRuta: (userId: string, enabled: boolean) => post<AdminProfile>(`/users/${userId}/mi-ruta`, { enabled }),
+
+  accessCodes: (q?: string, status?: string) => apiFetch<AccessCode[]>(`${A}/access-codes`, { query: { q, status } }),
+  createAccessCodes: (body: AccessCodeInput) => post<AccessCode[]>("/access-codes", body),
+  updateAccessCode: (id: number, body: { is_active?: boolean; note?: string | null; phone?: string | null; expires_at?: string | null }) =>
+    patch<AccessCode>(`/access-codes/${id}`, body),
+  deleteAccessCode: (id: number) => apiFetch<void>(`${A}/access-codes/${id}`, { method: "DELETE" }),
   auditClients: (filters: AuditFilters = {}) => apiFetch<{ total: number; clients: AuditClient[] }>(`${A}/audit/clients`, { query: { ...filters } }),
   auditEvents: (filters: AuditFilters = {}) => apiFetch<{ total: number; events: AuditEvent[] }>(`${A}/audit-logs`, { query: { ...filters } }),
 };

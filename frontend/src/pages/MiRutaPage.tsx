@@ -1,10 +1,12 @@
-import { Alert, Badge, LinkButton, SectionTitle } from "../components/ui";
+import { Alert, Badge, LinkButton, SectionTitle, Spinner } from "../components/ui";
 import { useAuth } from "../features/auth/AuthProvider";
 import { challengesApi } from "../features/challenges/api";
 import { ChallengesPanel } from "../features/challenges/ChallengesPanel";
 import { RewardsGrid } from "../features/challenges/RewardsGrid";
 import { ContentTabs } from "../features/content/ContentGrid";
 import { MealsPanel } from "../features/content/MealsPanel";
+import { MiRutaGate } from "../features/mi-ruta/MiRutaGate";
+import { useMiRutaAccess } from "../features/mi-ruta/useMiRutaAccess";
 import { HabitsPanel } from "../features/habits/HabitsPanel";
 import { RoutinePanel } from "../features/routines/RoutinePanel";
 import { useAsync } from "../services/useAsync";
@@ -42,15 +44,29 @@ function SignedInWellness() {
 }
 
 export function MiRutaPage() {
+  const access = useMiRutaAccess();
+
+  if (access.loading) {
+    return (
+      <section className="py-[72px]">
+        <div className="wrap"><Spinner /></div>
+      </section>
+    );
+  }
+  if (!access.hasAccess) return <MiRutaGate />;
+  return <MiRutaContent />;
+}
+
+function MiRutaContent() {
   const { session } = useAuth();
 
   return (
     <section className="py-[72px]">
       <div className="wrap flex flex-col gap-14">
         <div className="flex flex-col items-start gap-3">
-          <Badge tone="burgundy">Gratis</Badge>
-          <SectionTitle eyebrow="GRATIS CON EL QR DE TU PRENDA" title="Mi Ruta S2">
-            Rutinas, recetas, retos y crecimiento personal para empezar hoy. Todo Mi Ruta es gratis.
+          <Badge tone="burgundy">Clientas S2</Badge>
+          <SectionTitle eyebrow="CON EL CÓDIGO O QR DE TU COMPRA" title="Mi Ruta S2">
+            Rutinas, recetas, retos y crecimiento personal para empezar hoy.
           </SectionTitle>
         </div>
 

@@ -16,6 +16,8 @@ export type PlusStatus = "active" | "expired" | "cancelled" | "pending_payment" 
 export interface AdminProfile extends Profile {
   plus_status: PlusStatus;
   plus_ends_at: string | null;
+  mi_ruta_unlocked_at?: string | null;
+  mi_ruta_unlock_source?: string | null;
 }
 
 export interface AdminMembership {

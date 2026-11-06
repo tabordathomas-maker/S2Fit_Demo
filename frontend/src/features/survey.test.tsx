@@ -113,9 +113,9 @@ describe("Ficha de producto", () => {
     renderWithProviders(<ProductPage />, { route: "/tienda/set-lila", path: "/tienda/:slug" });
 
     expect(await screen.findByText("Incluye QR a Mi Ruta")).toBeInTheDocument();
-    expect(screen.getByText("Cada prenda trae un QR para entrar gratis a rutinas, recetas y tu panel de hábitos.")).toBeInTheDocument();
+    expect(screen.getByText("Al comprar recibes un código o QR para entrar a Mi Ruta.")).toBeInTheDocument();
     expect(screen.getByLabelText("QR de ejemplo a Mi Ruta")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ver Mi Ruta" })).toHaveAttribute("href", "/mi-ruta");
+    expect(screen.getByRole("link", { name: "¿Tienes un código?" })).toHaveAttribute("href", "/mi-ruta");
     expect(screen.getByRole("button", { name: "Única" })).toBeInTheDocument();
   });
 
@@ -131,7 +131,7 @@ describe("Ficha de producto", () => {
 describe("Confirmación de pedido", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("avisa que la prenda llegará con su QR para Mi Ruta", async () => {
+  it("avisa que Mi Ruta se habilita al confirmar el pago", async () => {
     localStorage.setItem("s2fit:cart", JSON.stringify([{ variantId: 7, productSlug: "x", productName: "Set", variantLabel: "Talla M", imageUrl: null, displayPrice: 1000, quantity: 1, maxQuantity: 3 }]));
     config.whatsappNumber = "573001234567";
     vi.spyOn(ordersApi, "create").mockResolvedValue({ id: "o1", reference: "S2-ORD-ABCD2345", total: 1000, whatsapp_message: "Hola" } as OrderWithMessage);
@@ -140,7 +140,7 @@ describe("Confirmación de pedido", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Comprar por WhatsApp" }));
 
-    expect(await screen.findByText("Tu prenda llegará con su QR para Mi Ruta.")).toBeInTheDocument();
+    expect(await screen.findByText("Cuando confirmemos tu pago se habilita tu sección Mi Ruta, y tu prenda llegará con un código o QR.")).toBeInTheDocument();
   });
 });
 

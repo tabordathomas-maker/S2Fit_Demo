@@ -4,13 +4,14 @@ import { Link, NavLink } from "react-router-dom";
 import logo from "../assets/logo-s2.png";
 import { useAuth } from "../features/auth/AuthProvider";
 import { useCart } from "../features/cart/CartProvider";
+import { useMiRutaAccess } from "../features/mi-ruta/useMiRutaAccess";
 import { NotificationsProvider } from "../features/notifications/NotificationsProvider";
 import { NotificationBell } from "./NotificationBell";
 
 const NAV = [
   { to: "/", label: "Inicio", end: true },
   { to: "/tienda", label: "Tienda" },
-  { to: "/mi-ruta", label: "Mi Ruta" },
+  { to: "/mi-ruta", label: "Mi Ruta", needsAccess: true },
   { to: "/s2-box", label: "S2 Box" },
 ];
 
@@ -47,6 +48,7 @@ function HeaderContent() {
   const desktop = useIsDesktop();
   const { profile, isAdmin, session } = useAuth();
   const { count } = useCart();
+  const miRuta = useMiRutaAccess();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
@@ -76,7 +78,7 @@ function HeaderContent() {
           aria-label="Principal"
           className={`${open ? "flex" : "hidden"} w-full flex-col gap-2 md:flex md:w-auto md:flex-row md:flex-wrap md:items-center`}
         >
-          {NAV.map((item) => (
+          {NAV.filter((item) => !item.needsAccess || miRuta.hasAccess).map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end} className={navClass} onClick={close}>
               {item.label}
             </NavLink>
