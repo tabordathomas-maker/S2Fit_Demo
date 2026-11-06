@@ -6,6 +6,7 @@ import { adminApi } from "./api";
 import { CatalogAdmin } from "./CatalogAdmin";
 import { ContentAdmin } from "./ContentAdmin";
 import { MembershipsAdmin } from "./MembershipsAdmin";
+import { MysteryBoxesAdmin } from "./MysteryBoxesAdmin";
 import { OrdersAdmin } from "./OrdersAdmin";
 import { PaymentsAdmin } from "./PaymentsAdmin";
 import { RoutinesAdmin } from "./RoutinesAdmin";
@@ -17,6 +18,7 @@ const TABS = [
   { id: "pedidos", label: "Pedidos", component: OrdersAdmin },
   { id: "catalogo", label: "Catálogo e inventario", component: CatalogAdmin },
   { id: "s2box", label: "S2 Box", component: MembershipsAdmin },
+  { id: "cajas", label: "Cajas S2 Box", component: MysteryBoxesAdmin },
   { id: "contenido", label: "Contenido y retos", component: ContentAdmin },
   { id: "rutinas", label: "Rutinas personalizadas", component: RoutinesAdmin },
   { id: "usuarios", label: "Usuarios y auditoría", component: UsersAdmin },

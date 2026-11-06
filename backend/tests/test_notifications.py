@@ -5,8 +5,10 @@ from datetime import timedelta
 
 from app.core import clock
 from app.main import app
-from app.models import BoxClaim, Order, Subscription, SubscriptionRequest
-from tests.factories import create_admin, create_plan, create_variant, new_user, payment_for, place_order
+from app.models import BoxClaim, Order, SubscriptionRequest
+from tests.factories import (
+    activate_membership, create_admin, create_box, create_plan, create_variant, new_user, payment_for, place_order,
+)
 
 
 def _confirm_body(order: dict) -> dict:
@@ -163,22 +165,23 @@ def test_box_claim_flow_creates_pending_claim_and_notifies_customer(client, db, 
     # Arrange
     admin, user = create_admin(db), new_user()
     client.get("/api/v1/me", headers=user.headers)
-    no_membership = client.post("/api/v1/s2box/claims", json={}, headers=user.headers)
-    plan = create_plan(db, price=80_000)
-    db.add(Subscription(user_id=user.id, plan_id=plan.id, status="active",
-                        starts_at=clock.now() - timedelta(days=1), ends_at=clock.now() + timedelta(days=29)))
-    db.commit()
+    box = create_box(db, title="Caja Soul")
+    no_membership = client.post(f"/api/v1/s2box/boxes/{box.id}/claims", json={}, headers=user.headers)
+    activate_membership(client, db, user)
 
     # Act
-    created = client.post("/api/v1/s2box/claims", json={"customer_note": "Talla M"}, headers=user.headers)
-    duplicate = client.post("/api/v1/s2box/claims", json={}, headers=user.headers)
+    created = client.post(f"/api/v1/s2box/boxes/{box.id}/claims", json={"customer_note": "Talla M"}, headers=user.headers)
+    again = client.post(f"/api/v1/s2box/boxes/{box.id}/claims", json={}, headers=user.headers)
+    admin_pending = _feed(client, admin)["items"][0]
     frozen_clock.advance(minutes=3)
     decided = client.post(f"/api/v1/admin/s2box/claims/{created.json()['id']}/accept", json={}, headers=admin.headers)
 
     # Assert
-    assert no_membership.status_code == 409 and no_membership.json()["error"]["code"] == "membership_required"
+    assert no_membership.status_code == 403 and no_membership.json()["error"]["code"] == "membership_required"
     assert created.status_code == 201 and created.json()["reference"].startswith("S2-BOX-")
-    assert duplicate.status_code == 409
+    assert again.status_code == 200 and again.json()["id"] == created.json()["id"]
+    assert admin_pending["title"] == "Nuevo reclamo · Caja Soul" and admin_pending["link"] == "/admin?tab=cajas"
     assert decided.status_code == 200 and decided.json()["status"] == "accepted"
     item = _feed(client, user)["items"][0]
-    assert (item["kind"], item["status"], item["unread"]) == ("box_claim", "accepted", True)
+    assert (item["kind"], item["status"], item["unread"], item["title"]) == (
+        "box_claim", "accepted", True, "Reclamo · Caja Soul")

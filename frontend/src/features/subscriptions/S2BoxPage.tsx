@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Alert, Badge, Button, Spinner } from "../../components/ui";
-import { S2BOX } from "../../content/s2box";
+import { S2BOX, S2BOX_BOXES } from "../../content/s2box";
 import { errorMessage } from "../../services/api";
 import { formatCOP } from "../../services/format";
 import type { MembershipStatus, Plan, SubscriptionRequestCreated } from "../../services/types";
@@ -12,6 +12,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { WhatsAppHandoff } from "../orders/WhatsAppHandoff";
 import { BenefitIcon } from "../s2box/BenefitIcon";
 import { BoxGallery } from "../s2box/BoxGallery";
+import { MysteryBoxes } from "../s2box/MysteryBoxes";
 import { PENDING_PLAN_KEY, subscriptionsApi } from "./api";
 import { MembershipCard, needsRenewal } from "./MembershipCard";
 
@@ -78,9 +79,22 @@ export function S2BoxPage() {
     }
   };
 
-  const goToPlans = () => document.getElementById(PLANS_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const location = useLocation();
+  const [membershipNotice, setMembershipNotice] = useState(
+    Boolean((location.state as { needMembership?: boolean } | null)?.needMembership),
+  );
+  const goToPlans = () => document.getElementById(PLANS_ID)?.scrollIntoView?.({ behavior: "smooth", block: "start" });
 
   const status = membership.data;
+  const needMembership = () => {
+    setMembershipNotice(true);
+    goToPlans();
+  };
+  // Al volver desde una caja sin acceso, se baja a los planes.
+  useEffect(() => {
+    if (membershipNotice) goToPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const isActive = Boolean(status?.is_active);
   const pendingPlanObj = plans.data?.find((p) => p.code === pendingPlan);
   const mainPlan = plans.data?.[0];
@@ -115,6 +129,8 @@ export function S2BoxPage() {
         </div>
       </section>
 
+      <MysteryBoxes membership={{ loading: Boolean(session) && membership.loading, active: isActive }} onNeedMembership={needMembership} />
+
       <section className="bg-cream py-[72px]" aria-label="Galería de la caja">
         <div className="wrap">
           <BoxGallery />
@@ -123,6 +139,7 @@ export function S2BoxPage() {
 
       <section id={PLANS_ID} className="py-[72px]" aria-labelledby="plans-title">
         <div className="wrap flex flex-col gap-8">
+          {membershipNotice && !isActive && <Alert tone="info">{S2BOX_BOXES.needMembership}</Alert>}
           {created && (
             <WhatsAppHandoff
               title={created.already_existed ? "Ya tenías una solicitud pendiente" : "¡Solicitud registrada!"}

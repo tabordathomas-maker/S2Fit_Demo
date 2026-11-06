@@ -23,6 +23,7 @@ describe("S2BoxPage", () => {
     vi.spyOn(subscriptionsApi, "plans").mockResolvedValue([plan]);
     vi.spyOn(subscriptionsApi, "membership").mockResolvedValue(noMembership);
     vi.spyOn(s2boxApi, "images").mockResolvedValue([]);
+    vi.spyOn(s2boxApi, "boxes").mockResolvedValue([]);
   });
   afterEach(() => vi.restoreAllMocks());
 

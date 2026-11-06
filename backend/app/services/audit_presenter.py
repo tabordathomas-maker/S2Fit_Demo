@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models import (
-    AdminAuditLog, BoxImage, Category, Challenge, ContentItem, CustomRoutine, Order, Payment, Plan, Product,
+    AdminAuditLog, BoxImage, MysteryBox, Category, Challenge, ContentItem, CustomRoutine, Order, Payment, Plan, Product,
     ProductVariant, Profile, Reward, RewardRedemption, RoutineStep, Subscription, SubscriptionRequest,
 )
 
@@ -146,18 +146,18 @@ def changes_from(details: dict) -> list[dict]:
 TYPE_NOUN = {
     "product": "el producto", "product_variant": "la variante", "category": "la categoría", "plan": "el plan", "content": "el contenido",
     "challenge": "el reto", "reward": "la recompensa", "routine": "la rutina", "routine_step": "el paso de rutina",
-    "box_image": "la foto de la caja", "payment": "el pago", "order": "el pedido", "subscription_request": "la solicitud",
+    "box_image": "la foto de la caja", "mystery_box": "la caja S2 Box", "box_claim": "el reclamo", "payment": "el pago", "order": "el pedido", "subscription_request": "la solicitud",
     "subscription": "la suscripción", "reward_redemption": "el canje", "storage": "el archivo", "site_settings": "la configuración",
 }
 TYPE_LABEL = {
     "product": "Producto", "product_variant": "Variante", "category": "Categoría", "plan": "Plan", "content": "Contenido",
-    "challenge": "Reto", "reward": "Recompensa", "routine": "Rutina", "routine_step": "Paso de rutina", "box_image": "Foto de la caja",
+    "challenge": "Reto", "reward": "Recompensa", "routine": "Rutina", "routine_step": "Paso de rutina", "box_image": "Foto de la caja", "mystery_box": "Caja S2 Box", "box_claim": "Reclamo S2 Box",
     "payment": "Pago", "order": "Pedido", "subscription_request": "Solicitud S2 Box", "subscription": "Suscripción",
     "reward_redemption": "Canje", "storage": "Archivo", "site_settings": "Configuración",
 }
 ENTITY_CATEGORY = {
     "payment": "Pagos", "order": "Pedidos", "plan": "Planes y S2 Box", "subscription_request": "Planes y S2 Box",
-    "box_image": "Planes y S2 Box", "subscription": "Usuarios y membresías", "site_settings": "Usuarios y membresías",
+    "box_image": "Planes y S2 Box", "mystery_box": "Planes y S2 Box", "box_claim": "Planes y S2 Box", "subscription": "Usuarios y membresías", "site_settings": "Usuarios y membresías",
     "content": "Contenido", "challenge": "Contenido", "reward": "Contenido", "routine": "Contenido", "routine_step": "Contenido",
     "reward_redemption": "Contenido", "product": "Catálogo", "product_variant": "Catálogo", "category": "Catálogo", "storage": "Archivos",
 }
@@ -166,7 +166,7 @@ GENERIC_VERBS = {
     "create": "creó", "update": "editó", "archive": "archivó", "restore": "restauró", "delete": "eliminó",
     "soft_delete": "eliminó (el historial se conserva)",
 }
-GENERIC_TYPES = ["product", "product_variant", "category", "plan", "content", "challenge", "reward", "routine", "routine_step", "box_image"]
+GENERIC_TYPES = ["product", "product_variant", "category", "plan", "content", "challenge", "reward", "routine", "routine_step", "box_image", "mystery_box"]
 
 
 @dataclass
@@ -239,6 +239,9 @@ class Resolver:
         if ids := _ints(wanted.get("box_image", ())):
             for img in db.scalars(select(BoxImage).where(BoxImage.id.in_(ids))):
                 self._put(Ent("box_image", str(img.id), img.alt_text or f"foto #{img.id}"))
+        if ids := _ints(wanted.get("mystery_box", ())):
+            for box in db.scalars(select(MysteryBox).where(MysteryBox.id.in_(ids))):
+                self._put(Ent("mystery_box", str(box.id), box.title))
         if ids := _uuids(wanted.get("order", ())):
             for o in db.scalars(select(Order).where(Order.id.in_(ids))):
                 self._put(Ent("order", str(o.id), o.reference, ref=o.reference, amount=o.total, user_id=o.user_id, status=o.status))
@@ -381,6 +384,8 @@ _reg("redemption.decide", "Contenido", lambda c: f"{'entregó' if c.d.get('statu
 _reg("routine.reassign", "Contenido", lambda c: f"reasignó la rutina «{c.name}» a otra persona")
 _reg("routine_step.reorder", "Contenido", lambda c: f"reordenó los pasos de la rutina «{c.name}»")
 _reg("upload.product_image", "Archivos", lambda c: "subió una imagen de producto")
+_reg("box_claim.accepted", "Planes y S2 Box", lambda c: f"aceptó el reclamo {c.d.get('reference', '')} de {c.client}")
+_reg("box_claim.rejected", "Planes y S2 Box", lambda c: f"rechazó el reclamo {c.d.get('reference', '')} de {c.client}")
 _reg("upload.box_image", "Archivos", lambda c: "subió una imagen de la S2 Box")
 _reg("upload.content_media", "Archivos", lambda c: "subió una imagen" if c.d.get("type") == "image" else "subió un video")
 _reg("settings.whatsapp_update", "Usuarios y membresías", lambda c: "cambió el número de WhatsApp de la tienda")

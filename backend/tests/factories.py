@@ -4,11 +4,13 @@ import os
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 
 import jwt
 from sqlalchemy.orm import Session
 
-from app.models import Category, Plan, Product, ProductVariant, Profile
+from app.core import clock
+from app.models import Category, MysteryBox, Plan, Product, ProductVariant, Profile, Subscription
 from app.models.enums import Role
 
 ISSUER = "https://test-project.supabase.co/auth/v1"
@@ -96,3 +98,28 @@ def place_order(client, user: TestUser, variant_id: int, quantity: int = 1):
 def payment_for(client, admin: TestUser, reference: str) -> dict:
     payments = client.get("/api/v1/admin/payments", headers=admin.headers).json()
     return next(p for p in payments if p["operation_reference"] == reference)
+
+
+SUPABASE_STORAGE = "https://test-project.supabase.co/storage/v1/object/public/product-images"
+
+
+def create_box(db: Session, *, access: str = "plus", active: bool = True, title: str = "Caja Soul", sort_order: int = 0) -> MysteryBox:
+    box = MysteryBox(
+        title=title, teaser="Una sorpresa para ti", cover_url=f"{SUPABASE_STORAGE}/s2box/portada.jpg",
+        cover_alt="Caja cerrada", content_media_url=f"{SUPABASE_STORAGE}/content/secreto.mp4",
+        content_description="Contenido secreto de la caja", content_access=access, is_active=active, sort_order=sort_order,
+    )
+    db.add(box)
+    db.commit()
+    db.refresh(box)
+    return box
+
+
+def activate_membership(client, db: Session, user: TestUser) -> None:
+    """Crea el perfil (primera llamada autenticada) y le da una suscripción activa."""
+    client.get("/api/v1/me", headers=user.headers)
+    plan = create_plan(db, code=f"plan-{uuid.uuid4().hex[:6]}", price=80_000)
+    now = clock.now()
+    db.add(Subscription(user_id=user.id, plan_id=plan.id, status="active",
+                        starts_at=now - timedelta(days=1), ends_at=now + timedelta(days=29)))
+    db.commit()

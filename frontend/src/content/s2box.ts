@@ -35,3 +35,19 @@ export const S2BOX = {
   plansTitle: "Planes",
   note: "El contenido sorpresa puede variar en cada caja.",
 };
+
+/** Textos de las cajas misteriosas (portada, apertura y panel). */
+export const S2BOX_BOXES = {
+  title: "Cajas S2 Box",
+  intro: "Descubre las sorpresas de S2 Box. Ábrelas con tu membresía activa.",
+  openLabel: "Abrir S2 Box",
+  badgePlus: "Exclusivo membresía",
+  badgeFree: "Para todos",
+  needMembership: "Necesitas la membresía S2 Box activa para abrir esta caja",
+  claimLabel: "WhatsApp para el envío",
+  claimBusy: "Registrando…",
+  claimTitle: "¡Reclamo registrado!",
+  claimAlready: "Ya tenías un reclamo pendiente",
+  claimDetail: "Escríbenos por WhatsApp para coordinar el envío de tu S2 Box.",
+  back: "← Volver a S2 Box",
+} as const;

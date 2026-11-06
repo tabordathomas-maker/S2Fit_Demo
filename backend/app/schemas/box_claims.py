@@ -18,13 +18,21 @@ class BoxClaimOut(ORMModel):
     id: uuid.UUID
     reference: str
     status: str
+    box_id: int | None
+    box_title: str | None
     customer_note: str | None
     admin_notes: str | None
     decided_at: datetime | None
     created_at: datetime
 
 
+class BoxClaimCreated(BoxClaimOut):
+    whatsapp_message: str
+    already_existed: bool
+
+
 class AdminBoxClaimOut(BoxClaimOut):
     user_id: uuid.UUID
     customer_email: str | None
     customer_name: str | None
+    customer_phone: str | None

@@ -8,7 +8,7 @@ created_at...) y no de updated_at: ese campo usa la hora de la base de datos
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import BoxClaim, Order, Payment, Profile, SubscriptionRequest
 from app.models.enums import BoxClaimStatus, OrderStatus, SubscriptionRequestStatus
@@ -58,6 +58,11 @@ def _claim_time(claim: BoxClaim) -> datetime:
     return claim.created_at if claim.status == BoxClaimStatus.pending else (claim.decided_at or claim.created_at)
 
 
+def _claim_title(prefix: str, claim: BoxClaim) -> str:
+    """Los reclamos antiguos no tienen caja: llevan el título genérico."""
+    return f"{prefix} · {claim.box_title}" if claim.box_title else f"{prefix} de S2 Box"
+
+
 def _threshold(user: Profile, now: datetime) -> datetime:
     return user.notifications_seen_at or (now - FIRST_VISIT_WINDOW)
 
@@ -100,14 +105,15 @@ def _customer_feed(db: Session, user: Profile, now: datetime) -> list[Notificati
         ))
 
     claims = db.scalars(
-        select(BoxClaim).where(BoxClaim.user_id == user.id).order_by(BoxClaim.updated_at.desc()).limit(MAX_ITEMS)
+        select(BoxClaim).options(selectinload(BoxClaim.box)).where(BoxClaim.user_id == user.id)
+        .order_by(BoxClaim.updated_at.desc()).limit(MAX_ITEMS)
     ).all()
     for claim in claims:
         status, label = CLAIM_STATES[claim.status]
         when = _claim_time(claim)
         items.append(NotificationItem(
             id=f"box_claim:{claim.reference}", kind="box_claim", reference=claim.reference,
-            title="Reclamo de S2 Box", status=status, status_label=label, occurred_at=when,
+            title=_claim_title("Reclamo", claim), status=status, status_label=label, occurred_at=when,
             link="/s2-box", unread=status != "pending" and when > since,
         ))
     return items
@@ -141,13 +147,14 @@ def _admin_feed(db: Session, user: Profile, now: datetime) -> list[NotificationI
         ))
 
     claims = db.scalars(
-        select(BoxClaim).where(BoxClaim.status == BoxClaimStatus.pending).order_by(BoxClaim.created_at.desc()).limit(MAX_ITEMS)
+        select(BoxClaim).options(selectinload(BoxClaim.box)).where(BoxClaim.status == BoxClaimStatus.pending)
+        .order_by(BoxClaim.created_at.desc()).limit(MAX_ITEMS)
     ).all()
     for claim in claims:
         items.append(NotificationItem(
             id=f"box_claim:{claim.reference}", kind="box_claim", reference=claim.reference,
-            title="Nuevo reclamo de S2 Box", status="pending", status_label="Pendiente",
-            occurred_at=claim.created_at, link="/admin?tab=s2box", unread=claim.created_at > since,
+            title=_claim_title("Nuevo reclamo", claim), status="pending", status_label="Pendiente",
+            occurred_at=claim.created_at, link="/admin?tab=cajas", unread=claim.created_at > since,
         ))
     return items
 

@@ -31,3 +31,7 @@ def subscription_message(request: SubscriptionRequest) -> str:
         "Quisiera confirmar el precio, la vigencia y los medios de pago por convenio. "
         f"Mi referencia de solicitud es {request.reference}."
     )
+
+
+def box_claim_message(client_name: str, reference: str) -> str:
+    return f"Soy {client_name} quiero reclamar mi S2 Box con referencia {reference}"

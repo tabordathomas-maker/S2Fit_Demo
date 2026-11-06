@@ -1,4 +1,4 @@
-"""Reclamos de la caja S2 Box."""
+"""Reclamos de las cajas S2 Box."""
 
 import uuid
 
@@ -6,7 +6,6 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import AdminUser, DbSession
 from app.core import clock
-from app.models import BoxClaim
 from app.models.enums import BoxClaimStatus
 from app.schemas.box_claims import AdminBoxClaimOut, BoxClaimDecision
 from app.services import box_claims
@@ -14,14 +13,13 @@ from app.services import box_claims
 router = APIRouter(prefix="/s2box/claims", tags=["admin: S2 Box"])
 
 
-def _present(claim: BoxClaim) -> dict:
+def _present(claim) -> dict:
     return {
-        **AdminBoxClaimOut.model_validate({
-            "id": claim.id, "reference": claim.reference, "status": claim.status,
-            "customer_note": claim.customer_note, "admin_notes": claim.admin_notes,
-            "decided_at": claim.decided_at, "created_at": claim.created_at, "user_id": claim.user_id,
-            "customer_email": claim.user.email, "customer_name": claim.user.full_name,
-        }).model_dump(),
+        "id": claim.id, "reference": claim.reference, "status": claim.status, "box_id": claim.box_id,
+        "box_title": claim.box_title, "customer_note": claim.customer_note, "admin_notes": claim.admin_notes,
+        "decided_at": claim.decided_at, "created_at": claim.created_at, "user_id": claim.user_id,
+        "customer_email": claim.user.email, "customer_name": claim.user.full_name,
+        "customer_phone": claim.user.phone,
     }
 
 
