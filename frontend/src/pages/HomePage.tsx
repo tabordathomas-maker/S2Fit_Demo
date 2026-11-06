@@ -30,7 +30,7 @@ function FeaturedProducts() {
         <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr))]">
           {featured.map((p) => (
             <Link key={p.id} to={`/tienda/${p.slug}`} className="overflow-hidden rounded-3xl bg-white">
-              <ProductImage src={p.image_url} alt={p.name} className="h-72 w-full" />
+              <ProductImage src={p.image_url} alt={p.name} className="w-full" />
               <div className="flex flex-col gap-1 p-5">
                 {!p.in_stock && <span className="w-fit rounded-full bg-neutral-200 px-3 py-1 text-sm font-bold text-neutral-800">Agotado</span>}
                 <span className="font-display text-lg">{p.name}</span>

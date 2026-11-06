@@ -57,7 +57,7 @@ function ProductView({ product }: { product: ProductDetail }) {
 
   return (
     <div className="mt-6 grid items-start gap-10 md:grid-cols-2">
-      <ProductImage src={product.image_url} alt={product.name} className="h-[420px] w-full rounded-[32px] md:h-[560px]" />
+      <ProductImage src={product.image_url} alt={product.name} className="w-full rounded-[32px] md:mx-auto md:max-w-[512px]" />
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap gap-2">
           <Badge>{product.category.name}</Badge>

@@ -14,6 +14,8 @@ import { useAsync } from "../../services/useAsync";
 import { ProductImage } from "../catalog/ProductImage";
 import { adminApi, type AdminProduct, type AdminVariant } from "./api";
 
+const PHOTO_ADVICE = "Recomendado: foto vertical 4:5 (1080 × 1350 px), producto centrado.";
+
 function slugify(text: string): string {
   return text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -199,8 +201,9 @@ function NewProductForm({ categories, run }: { categories: Category[]; run: Run 
       <Field label="Precio base (COP)" id="prod-price" type="number" min={0} required value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} />
       <TextArea label="Descripción" id="prod-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
       <div className="flex flex-wrap items-center gap-4">
-        {preview && <img src={preview} alt="Vista previa de la foto" className="h-32 w-24 rounded-xl object-cover object-top" />}
+        {preview && <ProductImage src={preview} alt="Vista previa de la foto" className="w-24 rounded-xl" />}
         <FileUploadButton id="prod-photo" label={photo ? "Cambiar foto" : "Elegir foto"} accept={IMAGE_ACCEPT} hint={IMAGE_HINT} onFile={setPhoto} />
+        <p className="basis-full text-sm text-muted">{PHOTO_ADVICE}</p>
       </div>
       <Button type="submit" variant="dark" className="self-start" disabled={creating}>{creating ? "Creando…" : "Crear producto"}</Button>
     </form>
@@ -256,7 +259,7 @@ function ProductEditor({ product, categories, run, ask }: { product: AdminProduc
   return (
     <li className="card flex flex-col gap-3 p-5">
       <div className="flex flex-wrap items-center gap-4">
-        <ProductImage src={product.image_url} alt={product.name} className="h-20 w-16 rounded-xl" />
+        <ProductImage src={product.image_url} alt={product.name} className="w-16 rounded-xl" />
         <div className="flex-1">
           <p className="font-display text-lg">{product.name}</p>
           <p className="text-sm text-muted">{formatCOP(product.base_price)} · {product.variants.length} variantes</p>
@@ -285,9 +288,10 @@ function ProductEditor({ product, categories, run, ask }: { product: AdminProduc
             <div className="flex flex-col gap-2 rounded-2xl bg-cream p-4 sm:col-span-2">
               <h4 className="font-display text-lg">Foto del producto</h4>
               <div className="flex flex-wrap items-center gap-4">
-                <ProductImage src={form.image_url || null} alt={form.name} className="h-32 w-24 rounded-xl" />
+                <ProductImage src={form.image_url || null} alt={form.name} className="w-24 rounded-xl" />
                 <FileUploadButton id={`u-${product.id}`} label={form.image_url ? "Cambiar foto" : "Subir foto"} accept={IMAGE_ACCEPT} hint={IMAGE_HINT}
                   busy={uploading} busyLabel="Subiendo foto…" onFile={(f) => void upload(f)} />
+                <p className="basis-full text-sm text-muted">{PHOTO_ADVICE}</p>
               </div>
               {saved && <p className="font-bold text-emerald-800" role="status">Foto guardada.</p>}
             </div>

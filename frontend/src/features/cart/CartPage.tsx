@@ -81,7 +81,7 @@ export function CartPage() {
             <ul className="flex flex-col gap-4" aria-label="Productos en la bolsa">
               {lines.map((line) => (
                 <li key={line.variantId} className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-                  <ProductImage src={line.imageUrl} alt={line.productName} className="h-28 w-24 shrink-0 rounded-2xl" />
+                  <ProductImage src={line.imageUrl} alt={line.productName} className="w-24 shrink-0 rounded-2xl" />
                   <div className="flex-1">
                     <Link to={`/tienda/${line.productSlug}`} className="font-display text-lg">{line.productName}</Link>
                     <p className="muted">{line.variantLabel}</p>

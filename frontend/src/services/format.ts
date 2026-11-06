@@ -42,7 +42,7 @@ export function plusStatusText(status: string, endsAt: string | null): string {
 /** Las imágenes del catálogo pueden ser URLs absolutas (Supabase Storage) o rutas del sitio. */
 export function resolveImage(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (/^https?:\/\//.test(url)) return url;
+  if (/^(https?:|blob:|data:)/.test(url)) return url;
   return config.baseUrl + url.replace(/^\/+/, "");
 }
 

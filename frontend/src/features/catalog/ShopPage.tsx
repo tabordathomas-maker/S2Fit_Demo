@@ -60,7 +60,7 @@ export function ShopPage() {
           {sorted.map((p) => (
             <article key={p.id} className="flex flex-col overflow-hidden rounded-3xl bg-white">
               <Link to={`/tienda/${p.slug}`} aria-label={`Ver ${p.name}`}>
-                <ProductImage src={p.image_url} alt={p.name} className="h-[340px] w-full" />
+                <ProductImage src={p.image_url} alt={p.name} className="w-full" />
               </Link>
               <div className="flex flex-1 flex-col gap-2 p-[22px]">
                 <div className="flex flex-wrap gap-2">
