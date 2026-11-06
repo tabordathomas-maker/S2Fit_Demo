@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 
 import logo from "../assets/logo-s2.png";
 import { useAuth } from "../features/auth/AuthProvider";
 import { useCart } from "../features/cart/CartProvider";
+import { NotificationsProvider } from "../features/notifications/NotificationsProvider";
+import { NotificationBell } from "./NotificationBell";
 
 const NAV = [
   { to: "/", label: "Inicio", end: true },
@@ -18,7 +20,31 @@ function navClass({ isActive }: { isActive: boolean }) {
   }`;
 }
 
+/** Un solo componente en pantalla: en móvil junto a «Bolsa»; en escritorio, dentro del menú. */
+function useIsDesktop(): boolean {
+  const query = "(min-width: 768px)";
+  const [matches, setMatches] = useState(() => typeof window.matchMedia === "function" && window.matchMedia(query).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const list = window.matchMedia(query);
+    const update = () => setMatches(list.matches);
+    update();
+    list.addEventListener("change", update);
+    return () => list.removeEventListener("change", update);
+  }, []);
+  return matches;
+}
+
 export function Header() {
+  return (
+    <NotificationsProvider>
+      <HeaderContent />
+    </NotificationsProvider>
+  );
+}
+
+function HeaderContent() {
+  const desktop = useIsDesktop();
   const { profile, isAdmin, session } = useAuth();
   const { count } = useCart();
   const [open, setOpen] = useState(false);
@@ -34,6 +60,7 @@ export function Header() {
           <Link to="/carrito" className="inline-flex min-h-11 items-center rounded-full bg-beige px-4 font-bold">
             Bolsa ({count})
           </Link>
+          {session && !desktop && <NotificationBell />}
           <button
             type="button"
             className="min-h-11 rounded-full border-2 border-beige px-4 font-bold"
@@ -57,6 +84,7 @@ export function Header() {
           {isAdmin && (
             <NavLink to="/admin" className={navClass} onClick={close}>Admin</NavLink>
           )}
+          {session && desktop && <NotificationBell />}
           <NavLink to={session ? "/cuenta" : "/ingresar"} className={navClass} onClick={close}>
             {session ? (profile?.full_name?.split(" ")[0] ?? "Mi cuenta") : "Ingresar"}
           </NavLink>

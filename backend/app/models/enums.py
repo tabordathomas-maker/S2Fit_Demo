@@ -94,3 +94,9 @@ class RoutineStatus(StrEnum):
     draft = "draft"
     active = "active"
     archived = "archived"
+
+
+class BoxClaimStatus(StrEnum):
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
