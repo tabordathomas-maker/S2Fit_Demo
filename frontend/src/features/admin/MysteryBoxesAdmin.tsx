@@ -301,6 +301,7 @@ function ClaimRow({ claim, onDone, onError }: {
     try {
       if (action === "accept") await s2boxAdminApi.acceptClaim(claim.id, note.trim());
       else await s2boxAdminApi.rejectClaim(claim.id, note.trim());
+      setNote("");
       await onDone(`Reclamo ${claim.reference} ${action === "accept" ? "aceptado" : "rechazado"}.`);
     } catch (err) {
       onError(err);

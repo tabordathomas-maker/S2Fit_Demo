@@ -64,7 +64,7 @@ describe("MysteryBoxes (portadas en /s2-box)", () => {
     expect(await screen.findByRole("heading", { name: "Caja Soul" })).toBeInTheDocument();
     expect(screen.getByText("Exclusivo membresía")).toBeInTheDocument();
     expect(screen.getByText("Para todos")).toBeInTheDocument();
-    expect(screen.getByAltText("Caja cerrada").parentElement).toHaveClass("aspect-[4/5]");
+    for (const img of screen.getAllByAltText("Caja cerrada")) expect(img.parentElement).toHaveClass("aspect-[4/5]");
   });
 
   it("sin sesión lleva a ingresar y vuelve a /s2-box", async () => {
@@ -190,7 +190,7 @@ describe("S2BoxOpenPage", () => {
     vi.spyOn(s2boxApi, "boxContent").mockRejectedValue(new ApiError(403, "membership_required", "Necesitas la membresía", { login_required: false }));
     open();
 
-    await waitFor(() => expect(screen.getAllByTestId("where")[0]).toHaveTextContent("/s2-box"));
+    await waitFor(() => expect(screen.getAllByTestId("where")[0].textContent).toBe("/s2-box"));
     expect(screen.getAllByTestId("state")[0]).toHaveTextContent('"needMembership":true');
   });
 
