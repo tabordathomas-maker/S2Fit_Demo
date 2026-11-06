@@ -37,13 +37,12 @@ def _clean_name(value: object) -> object:
 
 PlanName = Annotated[str, BeforeValidator(_clean_name), Field(min_length=2, max_length=80)]
 Benefit = Annotated[str, Field(min_length=1, max_length=120)]
-CODE_PATTERN = r"^[a-z0-9-]{2,40}$"
 
 
 class PlanCreate(InputModel):
     name: PlanName
-    # Opcional: si no viene, se genera a partir del nombre.
-    code: str | None = Field(default=None, pattern=CODE_PATTERN)
+    # obsoleto: se ignora; eliminar en la próxima versión. El código lo genera el backend a partir del nombre.
+    code: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=1000)
     price: int | None = Field(default=None, gt=0, le=50_000_000)
     hide_price: bool = False
@@ -56,7 +55,8 @@ class PlanCreate(InputModel):
 
 class PlanUpdate(InputModel):
     name: PlanName | None = None
-    code: str | None = Field(default=None, pattern=CODE_PATTERN)
+    # obsoleto: se ignora; eliminar en la próxima versión. El código lo genera el backend a partir del nombre.
+    code: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=1000)
     price: int | None = Field(default=None, gt=0, le=50_000_000)
     clear_price: bool = False

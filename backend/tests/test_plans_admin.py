@@ -1,7 +1,11 @@
 """Planes creados por el admin: código automático, nombres únicos y sin planes preinstalados."""
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 
+from app.core.database import engine
 from app.models import AdminAuditLog, Plan
 from app.services.plans import slugify_code, unique_code
 from tests.factories import create_admin, create_plan, new_user
@@ -123,49 +127,143 @@ def test_deleted_plan_does_not_block_reusing_its_name(client, db):
     assert plan.id is not None and response.status_code == 201
 
 
-def test_explicit_code_duplicate_and_invalid(client, db):
-    # Arrange
+def test_code_is_always_generated_and_a_deleted_plan_with_history_keeps_its_code_taken(client, db):
+    # Arrange: el primer plan tiene historial, así que al eliminarlo solo se oculta y su código sigue ocupado.
     admin = create_admin(db)
-    assert _create(client, admin, name="Uno", code="mi-plan").status_code == 201
+    first = _create(client, admin, name="S2 Box Mamá & Hija", price=60_000).json()
+    assert _request(client, new_user(), plan_code=first["code"]).status_code == 201
+    assert client.delete(f"{ADMIN}/plans/{first['id']}", headers=admin.headers).status_code == 204
 
     # Act
-    duplicate = _create(client, admin, name="Dos", code="mi-plan")
-    invalid = _create(client, admin, name="Tres", code="Mi Plan")
+    second = _create(client, admin, name="S2 Box Mamá & Hija")
 
     # Assert
-    assert duplicate.status_code == 409 and duplicate.json()["error"]["code"] == "PLAN_CODE_TAKEN"
-    assert invalid.status_code == 422
+    assert first["code"] == "s2-box-mama-hija"
+    assert second.status_code == 201 and second.json()["code"] == "s2-box-mama-hija-2"
 
 
-def test_changing_the_code_is_locked_once_the_plan_has_history(client, db):
+def test_code_sent_by_an_old_client_is_ignored_on_create_and_edit(client, db):
     # Arrange
     admin = create_admin(db)
+
+    # Act
+    created = _create(client, admin, name="Plan Uno", code="mi-codigo")
+    edited = client.patch(f"{ADMIN}/plans/{created.json()['id']}", json={"code": "otro-codigo", "price": 50_000}, headers=admin.headers)
+    bad_format = _create(client, admin, name="Plan Dos", code="Mi Plan")
+
+    # Assert
+    assert created.status_code == 201 and created.json()["code"] == "plan-uno"
+    assert edited.status_code == 200 and edited.json()["code"] == "plan-uno" and edited.json()["price"] == 50_000
+    assert bad_format.status_code == 201 and bad_format.json()["code"] == "plan-dos"
+
+
+def test_renaming_a_plan_without_history_regenerates_its_code_and_audits_it(client, db):
+    # Arrange
+    admin = create_admin(db)
+    plan = _create(client, admin, name="Plus Anual").json()
+
+    # Act
+    response = client.patch(f"{ADMIN}/plans/{plan['id']}", json={"name": "S2 Box Anual"}, headers=admin.headers)
+
+    # Assert
+    assert response.status_code == 200 and response.json()["code"] == "s2-box-anual"
+    log = db.query(AdminAuditLog).filter_by(action="plan.update").one()
+    assert log.details["code"] == {"from": "plus-anual", "to": "s2-box-anual"}
+    assert log.details["after"]["code"] == "s2-box-anual"
+
+
+def test_renaming_keeps_the_code_when_the_slug_is_the_same_or_the_plan_has_history(client, db):
+    # Arrange
+    admin = create_admin(db)
+    same = _create(client, admin, name="Plan Uno").json()
     plan = create_plan(db, price=60_000)
     _request(client, new_user())
-    url = f"{ADMIN}/plans/{plan.id}"
+    db.query(AdminAuditLog).delete()
+    db.commit()
 
     # Act
-    locked = client.patch(url, json={"code": "otro-codigo"}, headers=admin.headers)
-    other_fields = client.patch(url, json={"name": "Nuevo nombre", "price": 70_000}, headers=admin.headers)
-    same_code = client.patch(url, json={"code": plan.code}, headers=admin.headers)
+    case_only = client.patch(f"{ADMIN}/plans/{same['id']}", json={"name": "plan uno"}, headers=admin.headers)
+    with_history = client.patch(f"{ADMIN}/plans/{plan.id}", json={"name": "Nuevo nombre"}, headers=admin.headers)
 
     # Assert
-    assert locked.status_code == 409 and locked.json()["error"]["code"] == "PLAN_CODE_LOCKED"
-    assert locked.json()["error"]["message"] == "El código no se puede cambiar porque el plan ya tiene historial."
-    assert other_fields.status_code == 200 and other_fields.json()["price"] == 70_000
-    assert same_code.status_code == 200
+    assert case_only.json()["code"] == "plan-uno"
+    assert with_history.status_code == 200 and with_history.json()["name"] == "Nuevo nombre"
+    assert with_history.json()["code"] == "plus-mensual"
+    assert all("code" not in log.details for log in db.query(AdminAuditLog).filter_by(action="plan.update"))
 
 
-def test_code_can_change_while_the_plan_has_no_history(client, db):
+def test_regenerated_code_counts_archived_plans_as_taken(client, db):
     # Arrange
     admin = create_admin(db)
-    plan = _create(client, admin, name="Sin historial").json()
+    old = _create(client, admin, name="S2 Box Anual").json()
+    client.post(f"{ADMIN}/plans/{old['id']}/archive", headers=admin.headers)
+    other = _create(client, admin, name="Otro").json()
 
     # Act
-    response = client.patch(f"{ADMIN}/plans/{plan['id']}", json={"code": "nuevo-codigo"}, headers=admin.headers)
+    renamed = client.patch(f"{ADMIN}/plans/{other['id']}", json={"name": "S2 box anual!"}, headers=admin.headers)
 
     # Assert
-    assert response.status_code == 200 and response.json()["code"] == "nuevo-codigo"
+    assert renamed.status_code == 200 and renamed.json()["code"] == "s2-box-anual-2"
+
+
+def test_new_plan_code_works_for_subscription_requests(client, db):
+    # Arrange
+    admin, user = create_admin(db), new_user()
+    plan = _create(client, admin, name="S2 Box Anual", price=600_000).json()
+
+    # Act
+    response = _request(client, user, plan_code=plan["code"])
+
+    # Assert
+    assert plan["code"] == "s2-box-anual"
+    assert response.status_code == 201
+
+
+def _load_migration():
+    path = Path(__file__).resolve().parents[1] / "alembic" / "versions" / "0013_codigos_de_plan_automaticos.py"
+    spec = importlib.util.spec_from_file_location("migration_0013", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _named_plan(db, name: str, code: str) -> Plan:
+    plan = create_plan(db, code=code, price=60_000)
+    plan.name = name
+    db.commit()
+    return plan
+
+
+def test_migration_0013_fixes_old_codes_of_plans_without_history_only(client, db):
+    # Arrange: un plan sin historial con código viejo, otro con historial y un tercero que ya está bien.
+    old = _named_plan(db, "S2 Box Anual", "plus-anual")
+    _named_plan(db, "S2 Box Mensual", "plus-mensual")
+    _named_plan(db, "S2 Box Trimestral", "s2-box-trimestral")
+    assert _request(client, new_user(), plan_code="plus-mensual").status_code == 201
+
+    # Act
+    with engine.begin() as conn:
+        changed = _load_migration().regenerate_codes(conn)
+
+    # Assert
+    db.expire_all()
+    codes = {p.name: p.code for p in db.query(Plan)}
+    assert codes == {"S2 Box Anual": "s2-box-anual", "S2 Box Mensual": "plus-mensual", "S2 Box Trimestral": "s2-box-trimestral"}
+    assert changed == {old.id: ("plus-anual", "s2-box-anual")}
+
+
+def test_migration_0013_resolves_collisions_between_plans_with_the_same_slug(db):
+    # Arrange
+    _named_plan(db, "S2 Box", "viejo-uno")
+    _named_plan(db, "s2 box!", "viejo-dos")
+
+    # Act
+    with engine.begin() as conn:
+        _load_migration().regenerate_codes(conn)
+
+    # Assert
+    db.expire_all()
+    assert sorted(p.code for p in db.query(Plan)) == ["s2-box", "s2-box-2"]
 
 
 def test_create_validates_fields_and_audits(client, db):

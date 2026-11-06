@@ -54,8 +54,13 @@ def ensure_name_free(db: Session, name: str, exclude_id: int | None = None) -> N
         raise conflict("PLAN_NAME_TAKEN", f"Ya existe un plan llamado «{name}». Usa otro nombre.")
 
 
-def code_taken(db: Session, code: str) -> bool:
-    return db.scalar(select(Plan.id).where(Plan.code == code)) is not None
+def generate_code(db: Session, name: str, exclude_plan_id: int | None = None) -> str:
+    """Código interno único a partir del nombre. Cuenta los códigos de TODOS los planes (archivados y eliminados
+    también), menos el del propio plan al renombrarlo."""
+    stmt = select(Plan.code)
+    if exclude_plan_id is not None:
+        stmt = stmt.where(Plan.id != exclude_plan_id)
+    return unique_code(slugify_code(name), set(db.scalars(stmt)))
 
 
 def has_history(db: Session, plan_id: int) -> bool:
@@ -68,12 +73,8 @@ def has_history(db: Session, plan_id: int) -> bool:
 
 def create_plan(db: Session, admin: Profile, data: PlanCreate) -> Plan:
     ensure_name_free(db, data.name)
-    values = data.model_dump()
-    if values["code"]:
-        if code_taken(db, values["code"]):
-            raise conflict("PLAN_CODE_TAKEN", f"Ya existe un plan con el código «{values['code']}».")
-    else:
-        values["code"] = unique_code(slugify_code(data.name), set(db.scalars(select(Plan.code))))
+    # El código es automático: si el cliente manda `code` (versión anterior del panel) se ignora.
+    values = {**data.model_dump(exclude={"code"}), "code": generate_code(db, data.name)}
     plan = Plan(**values)
     db.add(plan)
     db.flush()

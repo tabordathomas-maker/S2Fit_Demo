@@ -33,33 +33,18 @@ describe("slugifyCode (misma regla que el backend)", () => {
 const submitMock = () => vi.fn<(body: Record<string, unknown>) => Promise<void>>().mockResolvedValue(undefined);
 
 describe("PlanForm · crear", () => {
-  it("el código se genera al escribir y se envía solo si el admin lo editó", async () => {
+  it("no tiene un campo «Código» editable: muestra el código interno automático y no lo envía", async () => {
     const onSubmit = submitMock();
     renderWithProviders(<PlanForm mode="create" onSubmit={onSubmit} />);
 
-    await userEvent.type(screen.getByLabelText("Nombre"), "S2 Box Mamá & Hija");
-    expect(screen.getByText("s2-box-mama-hija", { selector: "strong" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Código")).toHaveValue("s2-box-mama-hija");
+    expect(screen.queryByLabelText("Código")).not.toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Nombre"), "S2 Box Anual");
+    expect(screen.getByText("Código interno:", { exact: false })).toHaveTextContent("Código interno: s2-box-anual (automático)");
     await userEvent.click(screen.getByRole("button", { name: "Crear plan" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ name: "S2 Box Mamá & Hija", duration_days: 30, period_label: "mensual", price: null });
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ name: "S2 Box Anual", duration_days: 30, period_label: "mensual", price: null });
     expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("code");
-  });
-
-  it("deja de autocompletarse cuando el admin edita el código a mano", async () => {
-    const onSubmit = submitMock();
-    renderWithProviders(<PlanForm mode="create" onSubmit={onSubmit} />);
-
-    await userEvent.type(screen.getByLabelText("Nombre"), "Plan Uno");
-    const code = screen.getByLabelText("Código");
-    await userEvent.clear(code);
-    await userEvent.type(code, "mi-codigo");
-    await userEvent.type(screen.getByLabelText("Nombre"), " Extra");
-
-    expect(screen.getByLabelText("Código")).toHaveValue("mi-codigo");
-    await userEvent.click(screen.getByRole("button", { name: "Crear plan" }));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ code: "mi-codigo" })));
   });
 
   it("muestra el contador N/80 y la vista previa con precio, duración y beneficios", async () => {
@@ -108,11 +93,33 @@ const plan: Plan = {
 };
 
 describe("PlanForm · editar", () => {
-  it("con historial el código está deshabilitado y explica por qué", () => {
-    renderWithProviders(<PlanForm mode="edit" plan={plan} codeLocked onSubmit={submitMock()} />);
+  it("con historial muestra el código actual y que se conserva aunque cambie el nombre", async () => {
+    const onSubmit = submitMock();
+    renderWithProviders(<PlanForm mode="edit" plan={{ ...plan, code: "plus-mensual" }} hasHistory onSubmit={onSubmit} />);
 
-    expect(screen.getByLabelText("Código")).toBeDisabled();
-    expect(screen.getByText("El código no se puede cambiar porque el plan ya tiene historial.")).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText("Nombre"));
+    await userEvent.type(screen.getByLabelText("Nombre"), "S2 Box Mensual");
+
+    expect(screen.queryByLabelText("Código")).not.toBeInTheDocument();
+    expect(screen.getByText("Código interno:", { exact: false })).toHaveTextContent(
+      "Código interno: plus-mensual (automático) (se conserva porque el plan ya tiene historial)",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Guardar plan" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ name: "S2 Box Mensual" }));
+  });
+
+  it("sin historial la vista previa del código sigue al nombre y no se envía", async () => {
+    const onSubmit = submitMock();
+    renderWithProviders(<PlanForm mode="edit" plan={{ ...plan, code: "plus-anual", name: "Plus Anual" }} onSubmit={onSubmit} />);
+    expect(screen.getByText("Código interno:", { exact: false })).toHaveTextContent("Código interno: plus-anual (automático)");
+
+    await userEvent.clear(screen.getByLabelText("Nombre"));
+    await userEvent.type(screen.getByLabelText("Nombre"), "S2 Box Anual");
+
+    expect(screen.getByText("Código interno:", { exact: false })).toHaveTextContent("Código interno: s2-box-anual (automático)");
+    expect(screen.getByText("Código interno:", { exact: false })).not.toHaveTextContent("se conserva");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar plan" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ name: "S2 Box Anual" }));
   });
 
   it("precarga y envía el PATCH solo con lo cambiado", async () => {

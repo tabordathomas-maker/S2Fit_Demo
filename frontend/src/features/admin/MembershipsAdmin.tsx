@@ -270,7 +270,7 @@ export function MembershipsAdmin() {
               key={p.id}
               mode="edit"
               plan={p}
-              codeLocked={planHasHistory(p)}
+              hasHistory={planHasHistory(p)}
               onSubmit={(body) => savePlan(() => adminApi.updatePlan(p.id, body), "Plan actualizado.")}
               actions={
                 <RowActions
@@ -289,7 +289,7 @@ export function MembershipsAdmin() {
   );
 }
 
-/** Hay solicitudes o suscripciones (de cualquier estado) que usan el plan: su código ya no se puede cambiar. */
+/** Hay solicitudes o suscripciones (de cualquier estado) que usan el plan: su código interno se conserva al renombrarlo. */
 function planHasHistory(plan: Plan): boolean {
   const counts = [...Object.values(plan.usage?.live ?? {}), ...Object.values(plan.usage?.historical ?? {})];
   return counts.some((n) => n > 0);

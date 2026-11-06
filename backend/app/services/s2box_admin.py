@@ -28,17 +28,20 @@ def update_plan(db: Session, admin: Profile, plan_id: int, data: PlanUpdate) -> 
     changes = data.model_dump(exclude_unset=True, exclude={"clear_price"})
     if data.clear_price:
         changes["price"] = None
-    for key in ("name", "duration_days", "period_label", "benefits", "is_active", "hide_price", "sort_order", "code"):
+    changes.pop("code", None)  # obsoleto: se ignora; el código se regenera solo
+    for key in ("name", "duration_days", "period_label", "benefits", "is_active", "hide_price", "sort_order"):
         if key in changes and changes[key] is None:
             changes.pop(key)
     if "name" in changes and changes["name"] != plan.name:
         plans_service.ensure_name_free(db, changes["name"], exclude_id=plan.id)
-    if "code" in changes and changes["code"] != plan.code:
-        if plans_service.has_history(db, plan.id):
-            raise conflict("PLAN_CODE_LOCKED", "El código no se puede cambiar porque el plan ya tiene historial.")
-        if plans_service.code_taken(db, changes["code"]):
-            raise conflict("PLAN_CODE_TAKEN", f"Ya existe un plan con el código «{changes['code']}».")
-    archive.apply_update(db, admin, plan, "plan", plan.id, changes)
+    extra = None
+    if "name" in changes and changes["name"] != plan.name and not plans_service.has_history(db, plan.id):
+        # Sin historial el código acompaña al nombre; con historial se conserva.
+        new_code = plans_service.generate_code(db, changes["name"], exclude_plan_id=plan.id)
+        if new_code != plan.code:
+            extra = {"code": {"from": plan.code, "to": new_code}}
+            changes["code"] = new_code
+    archive.apply_update(db, admin, plan, "plan", plan.id, changes, extra)
     return plan
 
 

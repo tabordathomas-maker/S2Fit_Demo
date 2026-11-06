@@ -24,8 +24,8 @@ function presetOf(plan?: Plan): string {
 interface PlanFormProps {
   mode: "create" | "edit";
   plan?: Plan;
-  /** Con historial (solicitudes o suscripciones) el código no se puede cambiar. */
-  codeLocked?: boolean;
+  /** Con historial (solicitudes o suscripciones) el código interno se conserva aunque cambie el nombre. */
+  hasHistory?: boolean;
   /** Debe lanzar el error si falla; el formulario muestra los mensajes del backend junto al campo. */
   onSubmit: (body: Record<string, unknown>) => Promise<void>;
   onCancel?: () => void;
@@ -33,12 +33,10 @@ interface PlanFormProps {
   actions?: ReactNode;
 }
 
-/** Crea o edita un plan de S2 Box. El código se genera solo a partir del nombre mientras no se edite a mano. */
-export function PlanForm({ mode, plan, codeLocked = false, onSubmit, onCancel, actions }: PlanFormProps) {
+/** Crea o edita un plan de S2 Box. El código interno es automático: el admin nunca lo escribe. */
+export function PlanForm({ mode, plan, hasHistory = false, onSubmit, onCancel, actions }: PlanFormProps) {
   const idKey = plan ? String(plan.id) : "new";
   const [name, setName] = useState(plan?.name ?? "");
-  const [code, setCode] = useState(plan?.code ?? "");
-  const [codeTouched, setCodeTouched] = useState(mode === "edit");
   const [description, setDescription] = useState(plan?.description ?? "");
   const [price, setPrice] = useState(plan?.price ? String(plan.price) : "");
   const [hidePrice, setHidePrice] = useState(plan?.hide_price ?? false);
@@ -48,11 +46,13 @@ export function PlanForm({ mode, plan, codeLocked = false, onSubmit, onCancel, a
   const [benefits, setBenefits] = useState<string[]>(plan?.benefits ?? []);
   const [isActive, setIsActive] = useState(plan?.is_active ?? true);
   const [sortOrder, setSortOrder] = useState(String(plan?.sort_order ?? 0));
-  const [errors, setErrors] = useState<{ name?: string; code?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; general?: string }>({});
   const [saving, setSaving] = useState(false);
 
   const normalizedName = normalizePlanName(name);
-  const shownCode = codeTouched ? code : slugifyCode(normalizedName);
+  // Vista previa de lo que hará el backend: en un plan nuevo y en uno sin historial el código sigue al nombre.
+  const keepsCode = mode === "edit" && hasHistory;
+  const shownCode = mode === "edit" && (hasHistory || normalizedName === plan!.name) ? plan!.code : slugifyCode(normalizedName);
   const durationDays = preset === "otro" ? Number(customDays) || 0 : DURATIONS.find((d) => d.id === preset)!.days;
   const periodLabel = preset === "otro" ? customLabel.trim() : preset;
   const cleanBenefits = benefits.map((b) => b.trim()).filter(Boolean);
@@ -80,7 +80,7 @@ export function PlanForm({ mode, plan, codeLocked = false, onSubmit, onCancel, a
     };
     let body: Record<string, unknown>;
     if (mode === "create") {
-      body = { ...current, ...(codeTouched && code ? { code } : {}) };
+      body = { ...current };
     } else {
       // Solo se envía lo que cambió.
       const changes = diffPatch(
@@ -94,7 +94,6 @@ export function PlanForm({ mode, plan, codeLocked = false, onSubmit, onCancel, a
         if (newPrice === null) body.clear_price = true;
         else body.price = newPrice;
       }
-      if (!codeLocked && code !== plan!.code) body.code = code;
       if (Object.keys(body).length === 0) return;
     }
     setSaving(true);
@@ -102,18 +101,16 @@ export function PlanForm({ mode, plan, codeLocked = false, onSubmit, onCancel, a
     try {
       await onSubmit(body);
       if (mode === "create") {
-        setName(""); setCode(""); setCodeTouched(false); setDescription(""); setPrice(""); setHidePrice(false);
+        setName(""); setDescription(""); setPrice(""); setHidePrice(false);
         setPreset("mensual"); setBenefits([]); setIsActive(true); setSortOrder("0");
       }
     } catch (err) {
       if (err instanceof ApiError && err.code === "PLAN_NAME_TAKEN") setErrors({ name: err.message });
-      else if (err instanceof ApiError && (err.code === "PLAN_CODE_TAKEN" || err.code === "PLAN_CODE_LOCKED")) setErrors({ code: err.message });
       else if (err instanceof ApiError && err.status === 422) {
         const fields = (err.details.fields as { field: string; message: string }[] | undefined) ?? [];
         setErrors({
           name: fields.find((f) => f.field === "name")?.message,
-          code: fields.find((f) => f.field === "code")?.message,
-          general: fields.some((f) => f.field !== "name" && f.field !== "code") ? err.message : undefined,
+          general: fields.some((f) => f.field !== "name") ? err.message : undefined,
         });
       } else setErrors({ general: errorMessage(err) });
     } finally {
@@ -140,13 +137,10 @@ export function PlanForm({ mode, plan, codeLocked = false, onSubmit, onCancel, a
         <Field label="Nombre" id={`pn-${idKey}`} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} aria-invalid={!!errors.name}
           hint={`${normalizedName.length}/80 · Así lo verán las clientas en S2 Box y en el mensaje de WhatsApp.`} />
         {errors.name && <p role="alert" className="mt-1 text-sm font-bold text-red-700">{errors.name}</p>}
-      </div>
-      <div>
-        <Field label="Código" id={`pc-${idKey}`} value={shownCode} disabled={codeLocked} aria-invalid={!!errors.code}
-          onChange={(e) => { setCodeTouched(true); setCode(e.target.value); }}
-          hint={codeLocked ? "El código no se puede cambiar porque el plan ya tiene historial." : "Se usa internamente; solo minúsculas, números y guiones."} />
-        <p className="mt-1 text-sm text-muted">Código: <strong className="font-mono">{shownCode}</strong></p>
-        {errors.code && <p role="alert" className="mt-1 text-sm font-bold text-red-700">{errors.code}</p>}
+        <p className="mt-1 text-sm text-muted">
+          Código interno: <span className="font-mono">{shownCode}</span> (automático)
+          {keepsCode && " (se conserva porque el plan ya tiene historial)"}
+        </p>
       </div>
       <div>
         <TextArea label="Descripción" id={`pdesc-${idKey}`} maxLength={1000} value={description} onChange={(e) => setDescription(e.target.value)} />

@@ -21,7 +21,8 @@ def changed_fields(obj: object, changes: dict[str, Any]) -> dict[str, Any]:
     return {field: value for field, value in changes.items() if getattr(obj, field) != value}
 
 
-def apply_update(db: Session, admin: Profile, obj: object, entity_type: str, entity_id: object, changes: dict[str, Any]) -> dict:
+def apply_update(db: Session, admin: Profile, obj: object, entity_type: str, entity_id: object, changes: dict[str, Any],
+                 extra: dict[str, Any] | None = None) -> dict:
     """Aplica un PATCH parcial y lo audita con los campos modificados (antes y después)."""
     real = changed_fields(obj, changes)
     before = {field: _jsonable(getattr(obj, field)) for field in real}
@@ -30,7 +31,7 @@ def apply_update(db: Session, admin: Profile, obj: object, entity_type: str, ent
     if real:
         audit.record(db, admin, f"{entity_type}.update", entity_type, entity_id,
                      {"changed_fields": sorted(real), "before": before,
-                      "after": {field: _jsonable(value) for field, value in real.items()}})
+                      "after": {field: _jsonable(value) for field, value in real.items()}, **(extra or {})})
     return real
 
 

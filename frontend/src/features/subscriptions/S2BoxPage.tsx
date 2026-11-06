@@ -96,6 +96,13 @@ export function S2BoxPage() {
   }, []);
   const isActive = Boolean(status?.is_active);
   const pendingPlanObj = plans.data?.find((p) => p.code === pendingPlan);
+  // Un plan guardado antes de ingresar que ya no existe (archivado o con otro código) se descarta en silencio.
+  useEffect(() => {
+    if (plans.data && pendingPlan && !pendingPlanObj) {
+      writePendingPlan(null);
+      setPendingPlan(null);
+    }
+  }, [plans.data, pendingPlan, pendingPlanObj]);
   const mainPlan = plans.data?.[0];
   const showSubscribe = !status?.subscription || needsRenewal(status.subscription);
 

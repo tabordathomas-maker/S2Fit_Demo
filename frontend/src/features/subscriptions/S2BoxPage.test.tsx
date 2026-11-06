@@ -76,6 +76,16 @@ describe("S2BoxPage", () => {
     expect(await screen.findByRole("button", { name: "Continuar con mi suscripción" })).toBeInTheDocument();
   });
 
+  it("descarta en silencio un plan guardado cuyo código ya no existe", async () => {
+    sessionStorage.setItem(PENDING_PLAN_KEY, "plus-anual-viejo");
+    renderWithProviders(<S2BoxPage />, { auth: signedInAuth() });
+
+    await screen.findByRole("heading", { name: "S2 Box mensual" });
+    await waitFor(() => expect(sessionStorage.getItem(PENDING_PLAN_KEY)).toBeNull());
+    expect(screen.queryByRole("button", { name: "Continuar con mi suscripción" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("una solicitud pendiente muestra su referencia", async () => {
     vi.spyOn(subscriptionsApi, "membership").mockResolvedValue({
       is_active: false,
